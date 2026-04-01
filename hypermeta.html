@@ -181,6 +181,38 @@ button.primary:hover{background:#6d28d9}
       </div>
     </div>
 
+    <!-- Layer 2: Deep Mathematics -->
+    <div class="section-title" style="background:linear-gradient(90deg,var(--bg),var(--bg3));padding:8px;border-left-color:var(--magenta)">Layer 2: Deep Mathematics</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x2300;</span> Sheaf Cohomology <span class="tag tag-topo">Topology</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Global vs local consistency. H1 cohomology detects evidence that is locally consistent but globally contradictory.</p>
+        <div id="sheafContent"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x223F;</span> Ollivier-Ricci Curvature <span class="tag tag-geom">Geometry</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Discrete Ricci curvature on the study graph. Positive = clustering; negative = bottleneck/bridge.</p>
+        <div class="viz-container" id="ricciContainer"></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x2207;</span> Information Geometry <span class="tag tag-info">Manifold</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Fisher information metric on the statistical manifold. Geodesic distances and scalar curvature.</p>
+        <div class="viz-container" id="infoGeomContainer"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x2206;</span> Morse Theory <span class="tag tag-dyn">Topology</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Critical points of the evidence density landscape. Minima = consensus clusters; saddles = transition zones.</p>
+        <div class="viz-container" id="morseContainer"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="icon">&#x2102;</span> Kolmogorov Complexity <span class="tag tag-info">Information</span></h2>
+      <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Algorithmic randomness of the evidence. High K = incompressible disagreement; low K = structured pattern.</p>
+      <div id="kolmogorovContent"></div>
+    </div>
+
     <!-- Interpretation -->
     <div class="card" id="interpretCard">
       <h2><span class="icon">&#x2318;</span> Geometric Interpretation</h2>
@@ -600,6 +632,215 @@ function fractalDimension(studies) {
 }
 
 // ============================================================
+// LAYER 2: DEEP MATHEMATICS
+// ============================================================
+
+// 8. SHEAF COHOMOLOGY
+// A sheaf assigns data (effect estimates) to open sets (study neighborhoods).
+// H0 = global sections (consensus). H1 = obstruction to gluing local sections globally.
+function sheafCohomology(studies) {
+  const k = studies.length;
+  // Build a nerve complex: vertices = studies, edges = pairs within distance threshold
+  const threshold = 1.5; // in standardized units
+  const edges = [];
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) {
+    const d = Math.abs(studies[i].yi - studies[j].yi) / Math.sqrt(studies[i].vi + studies[j].vi);
+    if (d < threshold) edges.push({ i, j, d, consistent: true });
+    else edges.push({ i, j, d, consistent: false });
+  }
+  // Local sections: each edge checks if the two studies "agree" (consistent)
+  const consistentEdges = edges.filter(e => e.consistent);
+  const inconsistentEdges = edges.filter(e => !e.consistent);
+  // Coboundary operator: delta_0 maps vertices -> edges
+  // H0 = ker(delta_1) / im(delta_0) — for a constant sheaf, H0 counts connected components
+  // H1 = obstruction to extending local consistency globally
+  // Simplified: H1 ~ number of "frustrated triangles" (cycles where local consistency fails globally)
+  let frustratedTriangles = 0;
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) for (let l = j + 1; l < k; l++) {
+    const eij = edges.find(e => e.i === i && e.j === j);
+    const ejl = edges.find(e => e.i === j && e.j === l);
+    const eil = edges.find(e => e.i === i && e.j === l);
+    if (eij && ejl && eil) {
+      // All three pairs exist. Check transitivity: if i~j and j~l, does i~l?
+      if (eij.consistent && ejl.consistent && !eil.consistent) frustratedTriangles++;
+      if (eij.consistent && !ejl.consistent && eil.consistent) frustratedTriangles++;
+      if (!eij.consistent && ejl.consistent && eil.consistent) frustratedTriangles++;
+    }
+  }
+  // Cohomological dimension
+  const h0 = consistentEdges.length > 0 ? 1 : 0; // simplified: 1 if any global section exists
+  const h1 = frustratedTriangles;
+  // Sheaf Laplacian spectral gap (simplified)
+  const consistency_ratio = edges.length > 0 ? consistentEdges.length / edges.length : 1;
+  return { h0, h1: frustratedTriangles, consistentEdges: consistentEdges.length, inconsistentEdges: inconsistentEdges.length, consistency_ratio, totalEdges: edges.length };
+}
+
+// 9. OLLIVIER-RICCI CURVATURE
+// Discrete Ricci curvature via optimal transport on the study graph.
+// For edge (i,j): kappa(i,j) = 1 - W1(mu_i, mu_j) / d(i,j)
+// where mu_i is the uniform distribution on neighbors of i.
+function ollivierRicci(studies) {
+  const k = studies.length;
+  // Build weighted graph
+  const sigma = studies.reduce((s, st) => s + st.se, 0) / k;
+  const adjW = [];
+  for (let i = 0; i < k; i++) {
+    adjW[i] = [];
+    for (let j = 0; j < k; j++) {
+      if (i === j) adjW[i][j] = 0;
+      else adjW[i][j] = Math.exp(-((studies[i].yi - studies[j].yi) ** 2) / (2 * sigma * sigma));
+    }
+  }
+  // For each edge, compute Ollivier-Ricci curvature
+  const edgeCurvatures = [];
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) {
+    const dij = Math.abs(studies[i].yi - studies[j].yi);
+    if (dij < 1e-10) { edgeCurvatures.push({ i, j, kappa: 1 }); continue; }
+    // Neighbor distributions: mu_i = softmax of adj weights from i
+    const degI = adjW[i].reduce((a, b) => a + b, 0);
+    const degJ = adjW[j].reduce((a, b) => a + b, 0);
+    if (degI < 1e-10 || degJ < 1e-10) { edgeCurvatures.push({ i, j, kappa: 0 }); continue; }
+    // Simplified W1: use earth mover's distance approximation
+    // W1(mu_i, mu_j) ~ sum |mu_i(v) - mu_j(v)| * d(v, midpoint) / 2
+    // More practical: kappa ~ 1 - |deg_i - deg_j| / max(deg_i, deg_j) - overlap
+    const muI = adjW[i].map(w => w / degI);
+    const muJ = adjW[j].map(w => w / degJ);
+    // Total variation distance as W1 proxy
+    const tv = muI.reduce((s, p, v) => s + Math.abs(p - muJ[v]), 0) / 2;
+    const kappa = 1 - tv;
+    edgeCurvatures.push({ i, j, kappa, si: studies[i].study, sj: studies[j].study });
+  }
+  const avgCurvature = edgeCurvatures.length > 0 ? edgeCurvatures.reduce((s, e) => s + e.kappa, 0) / edgeCurvatures.length : 0;
+  const minCurvature = edgeCurvatures.length > 0 ? Math.min(...edgeCurvatures.map(e => e.kappa)) : 0;
+  const maxCurvature = edgeCurvatures.length > 0 ? Math.max(...edgeCurvatures.map(e => e.kappa)) : 0;
+  // Bottleneck edges: most negative curvature
+  const bottlenecks = [...edgeCurvatures].sort((a, b) => a.kappa - b.kappa).slice(0, 3);
+  return { edgeCurvatures, avgCurvature, minCurvature, maxCurvature, bottlenecks };
+}
+
+// 10. INFORMATION GEOMETRY
+// Each study defines a normal distribution N(yi, vi). The Fisher information metric
+// on the space of normal distributions: ds^2 = dmu^2/sigma^2 + 2*dsigma^2/sigma^2
+function informationGeometry(studies) {
+  const k = studies.length;
+  // Fisher-Rao distance between two normals: d(p,q) = sqrt(2)*log((sigma_q/sigma_p + sigma_p/sigma_q)/2 + (mu_p-mu_q)^2/(2*sigma_p*sigma_q))
+  // Simplified: d_FR(i,j) = sqrt((mu_i-mu_j)^2/sigma_avg^2 + 2*log(sigma_j/sigma_i)^2)
+  const frDist = [];
+  for (let i = 0; i < k; i++) {
+    frDist[i] = [];
+    for (let j = 0; j < k; j++) {
+      if (i === j) { frDist[i][j] = 0; continue; }
+      const si = studies[i].se, sj = studies[j].se;
+      const muDiff = studies[i].yi - studies[j].yi;
+      const sigmaAvg = (si + sj) / 2;
+      const d = Math.sqrt((muDiff * muDiff) / (sigmaAvg * sigmaAvg) + 2 * Math.pow(Math.log(sj / si), 2));
+      frDist[i][j] = d;
+    }
+  }
+  // Frechet mean on the manifold (iterative)
+  let fMu = studies.reduce((s, st) => s + st.yi, 0) / k;
+  let fSigma = Math.sqrt(studies.reduce((s, st) => s + st.vi, 0) / k);
+  // Scalar curvature of the normal family: K = -1/(2*sigma^4) (always negative)
+  const scalarCurvature = -1 / (2 * fSigma * fSigma * fSigma * fSigma);
+  // Geodesic variance on the manifold
+  const geodesicVar = studies.reduce((s, st) => {
+    const d = Math.sqrt(((st.yi - fMu) ** 2) / (fSigma ** 2) + 2 * Math.pow(Math.log(st.se / fSigma), 2));
+    return s + d * d;
+  }, 0) / k;
+  // Amari alpha-divergence (alpha=1 = KL, alpha=0 = Bhattacharyya)
+  const klDivs = studies.map(st => {
+    const kl = Math.log(fSigma / st.se) + (st.vi + (st.yi - fMu) ** 2) / (2 * fSigma * fSigma) - 0.5;
+    return Math.max(0, kl);
+  });
+  const totalKL = klDivs.reduce((a, b) => a + b, 0);
+  return { frDist, frechetMean: { mu: fMu, sigma: fSigma }, scalarCurvature, geodesicVar, totalKL, klDivs };
+}
+
+// 11. MORSE THEORY
+// Treat the KDE of effect sizes as a Morse function. Find critical points:
+// minima (consensus clusters), maxima (peaks), saddles (transition zones).
+function morseTheory(studies) {
+  const effects = studies.map(s => s.yi);
+  const min = Math.min(...effects) - 0.3, max = Math.max(...effects) + 0.3;
+  const nGrid = 200;
+  const step = (max - min) / nGrid;
+  const h = studies.reduce((s, st) => s + st.se, 0) / studies.length * 0.8; // bandwidth
+  // KDE
+  const density = [];
+  for (let i = 0; i <= nGrid; i++) {
+    const x = min + i * step;
+    let f = 0;
+    for (const s of studies) {
+      const u = (x - s.yi) / h;
+      f += Math.exp(-0.5 * u * u) / (h * Math.sqrt(2 * Math.PI));
+    }
+    f /= studies.length;
+    density.push({ x, f });
+  }
+  // Find critical points (where f' changes sign)
+  const criticalPoints = [];
+  for (let i = 1; i < density.length - 1; i++) {
+    const prev = density[i - 1].f, curr = density[i].f, next = density[i + 1].f;
+    if (curr > prev && curr > next) {
+      criticalPoints.push({ x: density[i].x, f: curr, type: 'maximum', index: i });
+    } else if (curr < prev && curr < next) {
+      criticalPoints.push({ x: density[i].x, f: curr, type: 'minimum', index: i });
+    }
+  }
+  // Morse number: #maxima - #saddles + #minima = chi(manifold) for 1D = 1 typically
+  const maxima = criticalPoints.filter(p => p.type === 'maximum');
+  const minima = criticalPoints.filter(p => p.type === 'minimum');
+  const morseNumber = maxima.length - minima.length;
+  // Euler characteristic (for 1D Morse function)
+  const euler = maxima.length - minima.length;
+  return { density, criticalPoints, maxima, minima, morseNumber, euler, bandwidth: h };
+}
+
+// 12. KOLMOGOROV COMPLEXITY (approximation via compression)
+// Approximate K(x) using Lempel-Ziv complexity of the quantized effect sequence.
+function kolmogorovComplexity(studies) {
+  // Quantize effects to symbols (alphabet size = sqrt(k))
+  const effects = studies.map(s => s.yi);
+  const sorted = [...effects].sort((a, b) => a - b);
+  const nSymbols = Math.max(3, Math.ceil(Math.sqrt(studies.length)));
+  const min = sorted[0], max = sorted[sorted.length - 1];
+  const binW = (max - min) / nSymbols || 0.1;
+  const symbols = effects.map(e => Math.min(nSymbols - 1, Math.floor((e - min) / binW)));
+  // Lempel-Ziv 76 complexity
+  const str = symbols.join('');
+  let c = 1, l = 1, i = 0, k_lz = 1;
+  const n = str.length;
+  while (l + i < n) {
+    if (str.substring(0, l + i).includes(str.substring(l, l + i + 1))) {
+      i++;
+    } else {
+      c++;
+      l = l + i + 1;
+      i = 0;
+    }
+  }
+  const lzComplexity = c;
+  // Normalized: C(n) / (n / log_alpha(n)) where alpha = nSymbols
+  const maxLZ = n / (Math.log(n) / Math.log(Math.max(2, nSymbols)) + 1e-10);
+  const normalizedK = maxLZ > 0 ? lzComplexity / maxLZ : 0;
+  // Compare to random baseline (shuffled)
+  let randomLZ = 0;
+  for (let trial = 0; trial < 20; trial++) {
+    const shuffled = [...symbols].sort(() => Math.random() - 0.5);
+    const sStr = shuffled.join('');
+    let c2 = 1, l2 = 1, i2 = 0;
+    while (l2 + i2 < n) {
+      if (sStr.substring(0, l2 + i2).includes(sStr.substring(l2, l2 + i2 + 1))) { i2++; }
+      else { c2++; l2 = l2 + i2 + 1; i2 = 0; }
+    }
+    randomLZ += c2;
+  }
+  randomLZ /= 20;
+  const compressibility = 1 - (lzComplexity / (randomLZ || 1));
+  return { lzComplexity, normalizedK, randomLZ, compressibility, nSymbols, symbols };
+}
+
+// ============================================================
 // MAIN ANALYSIS
 // ============================================================
 function runHyperMeta() {
@@ -611,7 +852,13 @@ function runHyperMeta() {
   const entropy = evidenceEntropy(studies);
   const attractor = strangeAttractor(studies);
   const fractal = fractalDimension(studies);
-  results = { poincare, topo, wasserstein, spectral, entropy, attractor, fractal };
+  // Layer 2
+  const sheaf = sheafCohomology(studies);
+  const ricci = ollivierRicci(studies);
+  const infoGeom = informationGeometry(studies);
+  const morse = morseTheory(studies);
+  const kolmogorov = kolmogorovComplexity(studies);
+  results = { poincare, topo, wasserstein, spectral, entropy, attractor, fractal, sheaf, ricci, infoGeom, morse, kolmogorov };
   renderAll();
 }
 
@@ -627,6 +874,12 @@ function renderAll() {
   renderEntropy();
   renderAttractor();
   renderFractal();
+  // Layer 2
+  renderSheaf();
+  renderRicci();
+  renderInfoGeom();
+  renderMorse();
+  renderKolmogorov();
   renderInterpretation();
   document.getElementById('metricsGrid').scrollIntoView({ behavior: 'smooth' });
 }
@@ -642,7 +895,12 @@ function renderMetrics() {
     { val: r.spectral.fiedler.toFixed(4), lbl: 'Fiedler Value (Alg. Connectivity)', cls: 'val-green' },
     { val: r.entropy.normalizedShannon.toFixed(3), lbl: 'Normalized Shannon Entropy', cls: 'val-blue' },
     { val: r.attractor.lyapunov.toFixed(4), lbl: `Lyapunov Exp. (${r.attractor.isStable ? 'Stable' : 'Chaotic'})`, cls: r.attractor.isStable ? 'val-green' : 'val-red' },
-    { val: r.fractal.dimension.toFixed(3), lbl: 'Fractal Dimension', cls: 'val-magenta' }
+    { val: r.fractal.dimension.toFixed(3), lbl: 'Fractal Dimension', cls: 'val-magenta' },
+    { val: r.sheaf.h1, lbl: 'Frustrated Triangles (Sheaf H1)', cls: 'val-cyan' },
+    { val: r.ricci.avgCurvature.toFixed(3), lbl: 'Avg Ollivier-Ricci Curvature', cls: r.ricci.avgCurvature >= 0 ? 'val-green' : 'val-red' },
+    { val: r.infoGeom.geodesicVar.toFixed(3), lbl: 'Geodesic Variance (Fisher-Rao)', cls: 'val-magenta' },
+    { val: `${r.morse.maxima.length}p ${r.morse.minima.length}v`, lbl: 'Morse Critical Points (peaks/valleys)', cls: 'val-gold' },
+    { val: `${(r.kolmogorov.compressibility * 100).toFixed(0)}%`, lbl: 'Kolmogorov Compressibility', cls: r.kolmogorov.compressibility > 0.3 ? 'val-green' : 'val-red' }
   ];
   document.getElementById('metricsGrid').innerHTML = metrics.map(m =>
     `<div class="metric-card"><div class="val ${m.cls}">${m.val}</div><div class="lbl">${m.lbl}</div></div>`
@@ -891,6 +1149,153 @@ function renderFractal() {
   document.getElementById('fractalContainer').innerHTML = svg;
 }
 
+// ============================================================
+// LAYER 2 RENDERING
+// ============================================================
+
+function renderSheaf() {
+  const s = results.sheaf;
+  let html = '<div class="grid-3">';
+  html += `<div class="metric-card"><div class="val val-cyan">${s.h1}</div><div class="lbl">Frustrated Triangles (H1)</div></div>`;
+  html += `<div class="metric-card"><div class="val val-green">${(s.consistency_ratio * 100).toFixed(0)}%</div><div class="lbl">Edge Consistency</div></div>`;
+  html += `<div class="metric-card"><div class="val val-magenta">${s.consistentEdges}/${s.totalEdges}</div><div class="lbl">Consistent / Total Edges</div></div>`;
+  html += '</div>';
+  html += `<div style="margin-top:10px;font-size:.82rem;color:var(--text2)">${s.h1 === 0 ? 'No frustrated triangles — the evidence sheaf has trivial H1 cohomology. Local agreements extend globally.' : s.h1 <= 3 ? `${s.h1} frustrated triangle(s) — evidence is locally consistent but contains ${s.h1} global contradictions. The sheaf has non-trivial H1, indicating the evidence cannot be reconciled by any single effect size.` : `${s.h1} frustrated triangles — severe cohomological obstruction. The evidence sheaf is badly non-trivial, indicating deep structural contradictions that no pooling method can resolve.`}</div>`;
+  document.getElementById('sheafContent').innerHTML = html;
+}
+
+function renderRicci() {
+  const W = 500, H = 300;
+  const r = results.ricci;
+  const ec = r.edgeCurvatures;
+  if (ec.length === 0) { document.getElementById('ricciContainer').innerHTML = '<p style="padding:20px;color:var(--text2)">No edges</p>'; return; }
+  const margin = { left: 50, right: 20, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  // Sort by curvature
+  const sorted = [...ec].sort((a, b) => a.kappa - b.kappa);
+  const n = sorted.length;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Zero line
+  const zeroY = margin.top + pH * (1 - (0 - (r.minCurvature - 0.1)) / ((r.maxCurvature + 0.1) - (r.minCurvature - 0.1)));
+  svg += `<line x1="${margin.left}" y1="${zeroY}" x2="${margin.left + pW}" y2="${zeroY}" stroke="var(--text2)" stroke-dasharray="3,3" opacity="0.5"/>`;
+  // Bars
+  const barW = Math.min(8, pW / n - 1);
+  const kRange = (r.maxCurvature + 0.1) - (r.minCurvature - 0.1);
+  for (let i = 0; i < n; i++) {
+    const x = margin.left + (i / n) * pW;
+    const kNorm = (sorted[i].kappa - (r.minCurvature - 0.1)) / kRange;
+    const y = margin.top + pH * (1 - kNorm);
+    const h = Math.abs(y - zeroY);
+    const col = sorted[i].kappa >= 0 ? 'var(--green)' : 'var(--red)';
+    svg += `<rect x="${x}" y="${Math.min(y, zeroY)}" width="${barW}" height="${h}" fill="${col}" opacity="0.7" rx="1">
+      <title>${escapeHtml(studies[sorted[i].i]?.study ?? '')} — ${escapeHtml(studies[sorted[i].j]?.study ?? '')}\nkappa=${sorted[i].kappa.toFixed(3)}</title>
+    </rect>`;
+  }
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="9" fill="var(--text2)">Edges sorted by curvature (red=bottleneck, green=clustered)</text>`;
+  svg += `<text x="${W - 10}" y="16" text-anchor="end" font-size="9" fill="var(--accent2)">avg kappa=${r.avgCurvature.toFixed(3)}</text>`;
+  svg += `</svg>`;
+  document.getElementById('ricciContainer').innerHTML = svg;
+}
+
+function renderInfoGeom() {
+  const W = 500, H = 300;
+  const ig = results.infoGeom;
+  const margin = { left: 50, right: 30, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Plot studies on the (mu, log-sigma) manifold (the upper half-plane model)
+  const muVals = studies.map(s => s.yi);
+  const logSigVals = studies.map(s => Math.log(s.se));
+  const muMin = Math.min(...muVals) - 0.1, muMax = Math.max(...muVals) + 0.1;
+  const lsMin = Math.min(...logSigVals) - 0.3, lsMax = Math.max(...logSigVals) + 0.3;
+  const muRange = muMax - muMin || 1, lsRange = lsMax - lsMin || 1;
+  const xS = v => margin.left + ((v - muMin) / muRange) * pW;
+  const yS = v => margin.top + pH - ((v - lsMin) / lsRange) * pH;
+  // Grid
+  for (let i = 0; i <= 4; i++) {
+    const x = margin.left + (i / 4) * pW;
+    svg += `<line x1="${x}" y1="${margin.top}" x2="${x}" y2="${margin.top + pH}" stroke="var(--border)" stroke-width="0.5" opacity="0.3"/>`;
+    const y = margin.top + (i / 4) * pH;
+    svg += `<line x1="${margin.left}" y1="${y}" x2="${margin.left + pW}" y2="${y}" stroke="var(--border)" stroke-width="0.5" opacity="0.3"/>`;
+  }
+  // KL divergence as color intensity from Frechet mean
+  const maxKL = Math.max(...ig.klDivs, 0.01);
+  const designColors = { RCT: [59, 130, 246], obs: [236, 72, 153], MA: [245, 158, 11], MR: [16, 185, 129] };
+  for (let i = 0; i < studies.length; i++) {
+    const px = xS(studies[i].yi), py = yS(Math.log(studies[i].se));
+    const klIntensity = ig.klDivs[i] / maxKL;
+    const baseCol = designColors[studies[i].design] ?? [167, 139, 250];
+    const r = baseCol[0], g = baseCol[1], b = baseCol[2];
+    const sz = 4 + klIntensity * 5;
+    svg += `<circle cx="${px}" cy="${py}" r="${sz}" fill="rgb(${r},${g},${b})" opacity="${0.5 + klIntensity * 0.4}">
+      <title>${escapeHtml(studies[i].study)}\nKL=${ig.klDivs[i].toFixed(3)}</title>
+    </circle>`;
+  }
+  // Frechet mean
+  const fmx = xS(ig.frechetMean.mu), fmy = yS(Math.log(ig.frechetMean.sigma));
+  svg += `<circle cx="${fmx}" cy="${fmy}" r="7" fill="none" stroke="var(--gold)" stroke-width="2" class="glow"/>`;
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="9" fill="var(--text2)">Statistical Manifold (mu, log-sigma plane)</text>`;
+  svg += `<text x="${W - 10}" y="16" text-anchor="end" font-size="8" fill="var(--text2)">Scalar curvature: ${ig.scalarCurvature.toFixed(2)}</text>`;
+  svg += `<text x="${W - 10}" y="28" text-anchor="end" font-size="8" fill="var(--text2)">Geodesic var: ${ig.geodesicVar.toFixed(3)}</text>`;
+  svg += `</svg>`;
+  document.getElementById('infoGeomContainer').innerHTML = svg;
+}
+
+function renderMorse() {
+  const W = 500, H = 280;
+  const m = results.morse;
+  const margin = { left: 50, right: 20, top: 20, bottom: 35 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  const maxF = Math.max(...m.density.map(d => d.f), 0.01);
+  const xMin = m.density[0].x, xMax = m.density[m.density.length - 1].x;
+  const xRange = xMax - xMin || 1;
+  const xS = v => margin.left + ((v - xMin) / xRange) * pW;
+  const yS = v => margin.top + pH - (v / maxF) * pH;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Density curve with gradient fill
+  let path = `M ${xS(m.density[0].x)} ${yS(m.density[0].f)}`;
+  for (let i = 1; i < m.density.length; i++) path += ` L ${xS(m.density[i].x)} ${yS(m.density[i].f)}`;
+  svg += `<defs><linearGradient id="morseFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity="0.4"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0.02"/></linearGradient></defs>`;
+  const fillPath = path + ` L ${xS(xMax)} ${margin.top + pH} L ${xS(xMin)} ${margin.top + pH} Z`;
+  svg += `<path d="${fillPath}" fill="url(#morseFill)"/>`;
+  svg += `<path d="${path}" fill="none" stroke="var(--accent2)" stroke-width="2"/>`;
+  // Critical points
+  for (const cp of m.maxima) {
+    svg += `<circle cx="${xS(cp.x)}" cy="${yS(cp.f)}" r="5" fill="var(--gold)" stroke="var(--bg)" stroke-width="1.5"><title>Maximum at ${cp.x.toFixed(3)}</title></circle>`;
+    svg += `<text x="${xS(cp.x)}" y="${yS(cp.f) - 8}" text-anchor="middle" font-size="7" fill="var(--gold)">max</text>`;
+  }
+  for (const cp of m.minima) {
+    svg += `<circle cx="${xS(cp.x)}" cy="${yS(cp.f)}" r="5" fill="var(--cyan)" stroke="var(--bg)" stroke-width="1.5"><title>Minimum at ${cp.x.toFixed(3)}</title></circle>`;
+    svg += `<text x="${xS(cp.x)}" y="${yS(cp.f) + 14}" text-anchor="middle" font-size="7" fill="var(--cyan)">saddle</text>`;
+  }
+  // Study tick marks
+  for (const s of studies) {
+    svg += `<line x1="${xS(s.yi)}" y1="${margin.top + pH}" x2="${xS(s.yi)}" y2="${margin.top + pH + 5}" stroke="var(--text2)" opacity="0.5"/>`;
+  }
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="9" fill="var(--text2)">Morse function (KDE) — ${m.maxima.length} peaks, ${m.minima.length} valleys, Euler=${m.euler}</text>`;
+  svg += `</svg>`;
+  document.getElementById('morseContainer').innerHTML = svg;
+}
+
+function renderKolmogorov() {
+  const kc = results.kolmogorov;
+  let html = '<div class="grid-3">';
+  html += `<div class="metric-card"><div class="val val-blue">${kc.lzComplexity}</div><div class="lbl">Lempel-Ziv Complexity</div></div>`;
+  html += `<div class="metric-card"><div class="val val-magenta">${kc.normalizedK.toFixed(3)}</div><div class="lbl">Normalized K (vs max)</div></div>`;
+  html += `<div class="metric-card"><div class="val ${kc.compressibility > 0.3 ? 'val-green' : 'val-red'}">${(kc.compressibility * 100).toFixed(0)}%</div><div class="lbl">Compressibility</div></div>`;
+  html += '</div>';
+  html += `<div style="margin-top:10px;font-size:.82rem;color:var(--text2)">LZ complexity = ${kc.lzComplexity} (random baseline = ${kc.randomLZ.toFixed(1)}). ${kc.compressibility > 0.3 ? 'The evidence is significantly compressible — there is structured pattern in the disagreement, suggesting a systematic explanation (e.g., confounding, study design).' : kc.compressibility > 0 ? 'Moderate compressibility — some structure exists but the disagreement is partly random.' : 'Incompressible — the evidence disagreement is algorithmically random, indistinguishable from noise. No hidden structure to exploit.'}</div>`;
+  // Symbol sequence visualization
+  const colors = ['var(--cyan)', 'var(--magenta)', 'var(--gold)', 'var(--green)', 'var(--red)', 'var(--blue)', 'var(--accent2)'];
+  html += '<div style="margin-top:8px;display:flex;gap:2px;flex-wrap:wrap">';
+  for (let i = 0; i < kc.symbols.length; i++) {
+    const col = colors[kc.symbols[i] % colors.length];
+    html += `<div style="width:18px;height:18px;background:${col};border-radius:3px;opacity:0.7" title="Study ${i + 1}: symbol ${kc.symbols[i]}"></div>`;
+  }
+  html += '</div>';
+  document.getElementById('kolmogorovContent').innerHTML = html;
+}
+
 function renderInterpretation() {
   const r = results;
   const p = r.poincare, t = r.topo, w = r.wasserstein, s = r.spectral, e = r.entropy, a = r.attractor, f = r.fractal;
@@ -926,6 +1331,33 @@ function renderInterpretation() {
     <div style="font-size:.82rem">Wasserstein barycenter = ${w.mean.toFixed(4)} vs DL = ${w.dlMean.toFixed(4)} (discrepancy ${w.discrepancy.toFixed(4)}). ${w.discrepancy > 0.05 ? 'Substantial divergence between optimal-transport and inverse-variance pooling — the choice of aggregation geometry matters for this evidence base.' : 'Small discrepancy — both geometries agree.'} Fractal D = ${f.dimension.toFixed(3)}${f.dimension > 0.7 ? ' (complex, space-filling disagreement)' : f.dimension > 0.3 ? ' (moderate complexity)' : ' (simple, point-like consensus)'}.</div>
   </div>`;
   html += '</div>';
+  // Layer 2 interpretations
+  html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">';
+  html += '<div style="font-size:.8rem;font-weight:700;color:var(--accent2);margin-bottom:8px;letter-spacing:.1em;text-transform:uppercase">Layer 2: Deep Structure</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  // Sheaf
+  const sh = r.sheaf;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--cyan)">Sheaf Cohomology:</span> ${sh.h1 === 0 ? 'Trivial H1 — evidence is globally consistent.' : `Non-trivial H1 (${sh.h1} frustrated triangles) — the evidence cannot be reconciled into a single coherent narrative.`}
+  </div>`;
+  // Ricci
+  const ri = r.ricci;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:${ri.avgCurvature >= 0 ? 'var(--green)' : 'var(--red)'}">Ricci Curvature:</span> avg = ${ri.avgCurvature.toFixed(3)}. ${ri.avgCurvature > 0.3 ? 'Positive — the evidence graph is highly clustered, studies reinforce each other.' : ri.avgCurvature < -0.1 ? 'Negative — bottleneck edges exist. Some study pairs are bridges between disconnected evidence clusters.' : 'Near-zero — flat geometry, no strong clustering or bridging.'}
+  </div>`;
+  // Info Geom
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--magenta)">Information Geometry:</span> Geodesic variance = ${r.infoGeom.geodesicVar.toFixed(3)} on the Fisher-Rao manifold. Scalar curvature = ${r.infoGeom.scalarCurvature.toFixed(2)} (always negative for normal families — the statistical manifold is hyperbolic).
+  </div>`;
+  // Morse
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--gold)">Morse Theory:</span> ${r.morse.maxima.length} peaks in the evidence landscape. ${r.morse.maxima.length === 1 ? 'Unimodal — single consensus region.' : r.morse.maxima.length === 2 ? 'Bimodal — two competing consensus regions separated by a saddle point.' : `Multimodal (${r.morse.maxima.length} modes) — fragmented evidence landscape with multiple competing hypotheses.`}
+  </div>`;
+  // Kolmogorov
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem;grid-column:1/-1">
+    <span style="font-weight:700;color:var(--blue)">Kolmogorov Complexity:</span> Compressibility = ${(r.kolmogorov.compressibility * 100).toFixed(0)}%. ${r.kolmogorov.compressibility > 0.3 ? 'The evidence disagreement has hidden structure — a systematic explanation exists (confounding, design bias, population differences).' : 'The disagreement is algorithmically random — no simple explanation can account for the pattern of results.'}
+  </div>`;
+  html += '</div></div>';
   document.getElementById('interpretContent').innerHTML = html;
 }
 

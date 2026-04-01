@@ -185,5 +185,90 @@ class TestNoErrors:
         assert len(html) > 100
 
 
+class TestLayer2Sheaf:
+    def test_29_sheaf_h1(self, driver):
+        load_and_run(driver)
+        h1 = js(driver, "return results.sheaf.h1")
+        assert h1 >= 0
+
+    def test_30_sheaf_consistency(self, driver):
+        cr = js(driver, "return results.sheaf.consistency_ratio")
+        assert 0 <= cr <= 1
+
+class TestLayer2Ricci:
+    def test_31_ricci_curvatures(self, driver):
+        load_and_run(driver)
+        n = js(driver, "return results.ricci.edgeCurvatures.length")
+        assert n > 0
+
+    def test_32_ricci_avg_finite(self, driver):
+        avg = js(driver, "return results.ricci.avgCurvature")
+        assert abs(avg) < 10
+
+    def test_33_ricci_svg(self, driver):
+        html = js(driver, "return document.getElementById('ricciContainer').innerHTML")
+        assert '<svg' in html.lower()
+
+class TestLayer2InfoGeom:
+    def test_34_frechet_mean(self, driver):
+        load_and_run(driver)
+        mu = js(driver, "return results.infoGeom.frechetMean.mu")
+        assert mu is not None and abs(mu) < 10
+
+    def test_35_scalar_curvature_negative(self, driver):
+        sc = js(driver, "return results.infoGeom.scalarCurvature")
+        assert sc < 0, "Normal family scalar curvature must be negative"
+
+    def test_36_geodesic_var_positive(self, driver):
+        gv = js(driver, "return results.infoGeom.geodesicVar")
+        assert gv >= 0
+
+    def test_37_info_geom_svg(self, driver):
+        html = js(driver, "return document.getElementById('infoGeomContainer').innerHTML")
+        assert '<svg' in html.lower()
+
+class TestLayer2Morse:
+    def test_38_density_computed(self, driver):
+        load_and_run(driver)
+        n = js(driver, "return results.morse.density.length")
+        assert n > 50
+
+    def test_39_critical_points(self, driver):
+        nMax = js(driver, "return results.morse.maxima.length")
+        assert nMax >= 1, "Must have at least 1 peak"
+
+    def test_40_morse_svg(self, driver):
+        html = js(driver, "return document.getElementById('morseContainer').innerHTML")
+        assert '<svg' in html.lower()
+
+class TestLayer2Kolmogorov:
+    def test_41_lz_complexity(self, driver):
+        load_and_run(driver)
+        lz = js(driver, "return results.kolmogorov.lzComplexity")
+        assert lz >= 1
+
+    def test_42_compressibility_bounded(self, driver):
+        c = js(driver, "return results.kolmogorov.compressibility")
+        assert -1 <= c <= 1
+
+    def test_43_symbols_match_studies(self, driver):
+        n = js(driver, "return results.kolmogorov.symbols.length")
+        assert n == 16
+
+class TestLayer2NoErrors:
+    def test_44_all_datasets_layer2(self, driver):
+        for ds in ['vitamind', 'hrt', 'homeopathy']:
+            load_and_run(driver, ds)
+            assert js(driver, "return results.sheaf !== null")
+            assert js(driver, "return results.ricci !== null")
+            assert js(driver, "return results.morse !== null")
+
+    def test_45_no_severe_errors(self, driver):
+        load_page(driver)
+        logs = driver.get_log("browser")
+        severe = [l for l in logs if l.get("level") == "SEVERE" and "favicon" not in l.get("message","").lower()]
+        assert len(severe) == 0, f"JS errors: {severe}"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v", "--tb=short"]))
