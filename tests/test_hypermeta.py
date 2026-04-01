@@ -270,5 +270,83 @@ class TestLayer2NoErrors:
         assert len(severe) == 0, f"JS errors: {severe}"
 
 
+class TestLayer3Quantum:
+    def test_46_von_neumann_nonneg(self, driver):
+        load_and_run(driver)
+        vn = js(driver, "return results.quantum.vonNeumann")
+        assert vn >= 0
+
+    def test_47_coherence_bounded(self, driver):
+        c = js(driver, "return results.quantum.coherence")
+        assert 0 <= c <= 1.5
+
+    def test_48_entanglement(self, driver):
+        ee = js(driver, "return results.quantum.entanglementEntropy")
+        assert ee >= 0
+
+class TestLayer3Category:
+    def test_49_colimit_finite(self, driver):
+        load_and_run(driver)
+        mu = js(driver, "return results.category.colimit.mu")
+        assert abs(mu) < 10
+
+    def test_50_nat_trans_norm(self, driver):
+        n = js(driver, "return results.category.natTransNorm")
+        assert n >= 0
+
+    def test_51_kan_extension(self, driver):
+        ke = js(driver, "return Object.keys(results.category.kanExtension).length")
+        assert ke >= 1
+
+class TestLayer3Tropical:
+    def test_52_tropical_mean(self, driver):
+        load_and_run(driver)
+        tm = js(driver, "return results.tropical.tropicalMean")
+        assert tm is not None
+
+    def test_53_tropical_rank(self, driver):
+        tr = js(driver, "return results.tropical.tropRank")
+        assert tr >= 1
+
+class TestLayer3Padic:
+    def test_54_padic_diameter(self, driver):
+        load_and_run(driver)
+        d = js(driver, "return results.padic.diameter")
+        assert d >= 0
+
+    def test_55_valuation_groups(self, driver):
+        vg = js(driver, "return results.padic.nValGroups")
+        assert vg >= 1
+
+class TestLayer3NCGeom:
+    def test_56_spectral_dim(self, driver):
+        load_and_run(driver)
+        sd = js(driver, "return results.ncGeom.spectralDim")
+        assert sd > 0
+
+    def test_57_dixmier_trace(self, driver):
+        dt = js(driver, "return results.ncGeom.dixmierTrace")
+        assert dt >= 0
+
+class TestAllLayers:
+    def test_58_all_datasets_all_layers(self, driver):
+        for ds in ['vitamind', 'hrt', 'homeopathy']:
+            load_and_run(driver, ds)
+            for key in ['quantum', 'category', 'tropical', 'padic', 'ncGeom']:
+                assert js(driver, f"return results.{key} !== null && results.{key} !== undefined"), f"{key} null for {ds}"
+
+    def test_59_no_errors_final(self, driver):
+        load_page(driver)
+        logs = driver.get_log("browser")
+        severe = [l for l in logs if l.get("level") == "SEVERE" and "favicon" not in l.get("message","").lower()]
+        assert len(severe) == 0
+
+    def test_60_total_modules(self, driver):
+        """Verify all 17 modules produce results."""
+        load_and_run(driver)
+        keys = js(driver, "return Object.keys(results)")
+        assert len(keys) == 17, f"Expected 17 modules, got {len(keys)}: {keys}"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v", "--tb=short"]))

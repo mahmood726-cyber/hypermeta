@@ -213,6 +213,38 @@ button.primary:hover{background:#6d28d9}
       <div id="kolmogorovContent"></div>
     </div>
 
+    <!-- Layer 3: The Abyss -->
+    <div class="section-title" style="background:linear-gradient(90deg,var(--bg),#1a0a2e);padding:8px;border-left-color:var(--gold)">Layer 3: The Abyss</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x2318;</span> Quantum Information <span class="tag" style="background:#7c3aed20;color:#c4b5fd">Quantum</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Studies as quantum states. Von Neumann entropy, fidelity, entanglement between design groups.</p>
+        <div id="quantumContent"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x2192;</span> Category Theory <span class="tag" style="background:#ec489920;color:var(--magenta)">Algebra</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Colimits, natural transformation norms, Kan extensions. How "forced" is the pooling?</p>
+        <div id="categoryContent"></div>
+      </div>
+    </div>
+    <div class="grid-3">
+      <div class="card">
+        <h2><span class="icon">&#x2295;</span> Tropical Geometry <span class="tag tag-geom">Tropical</span></h2>
+        <p style="font-size:.72rem;color:var(--text2);margin-bottom:8px">Min-plus algebra. Tropical convex hull and determinant.</p>
+        <div id="tropicalContent"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x2119;</span> p-Adic Analysis <span class="tag tag-info">Number Theory</span></h2>
+        <p style="font-size:.72rem;color:var(--text2);margin-bottom:8px">2-adic ultrametric distance. Fundamentally different notion of closeness.</p>
+        <div id="padicContent"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x2202;</span> Non-Commutative Geometry <span class="tag tag-geom">Connes</span></h2>
+        <p style="font-size:.72rem;color:var(--text2);margin-bottom:8px">Spectral triples, Dixmier trace, Connes distance.</p>
+        <div id="ncGeomContent"></div>
+      </div>
+    </div>
+
     <!-- Interpretation -->
     <div class="card" id="interpretCard">
       <h2><span class="icon">&#x2318;</span> Geometric Interpretation</h2>
@@ -841,6 +873,284 @@ function kolmogorovComplexity(studies) {
 }
 
 // ============================================================
+// ============================================================
+// LAYER 3: THE ABYSS
+// ============================================================
+
+// 13. QUANTUM INFORMATION METRICS
+// Treat each study as a quantum state |psi_i> = density matrix rho_i.
+// For normal distributions: rho is a Gaussian Wigner function on phase space.
+function quantumInformation(studies) {
+  const k = studies.length;
+  // Density matrix representation: each study is a 1D Gaussian state
+  // rho_i ~ |yi, se_i>. Overlap (fidelity) between Gaussians:
+  // F(rho_i, rho_j) = sqrt(2*si*sj/(si^2+sj^2)) * exp(-(yi-yj)^2/(2*(si^2+sj^2)))
+  const fidelityMatrix = [];
+  for (let i = 0; i < k; i++) {
+    fidelityMatrix[i] = [];
+    for (let j = 0; j < k; j++) {
+      const si2 = studies[i].vi, sj2 = studies[j].vi;
+      const prefactor = Math.sqrt(2 * Math.sqrt(si2 * sj2) / (si2 + sj2));
+      const expTerm = Math.exp(-((studies[i].yi - studies[j].yi) ** 2) / (2 * (si2 + sj2)));
+      fidelityMatrix[i][j] = prefactor * expTerm;
+    }
+  }
+  // Von Neumann entropy of the mixture state rho_mix = (1/k) * sum(rho_i)
+  // Approximate via eigenvalues of the fidelity (Gram) matrix
+  const gramNorm = fidelityMatrix.map(row => row.map(v => v / k));
+  const eigenvals = computeEigenvalues(gramNorm, k).filter(e => e > 1e-10);
+  const totalEig = eigenvals.reduce((a, b) => a + b, 0) || 1;
+  const probs = eigenvals.map(e => e / totalEig);
+  const vonNeumann = -probs.reduce((s, p) => s + (p > 0 ? p * Math.log2(p) : 0), 0);
+  const maxVN = Math.log2(k);
+  // Quantum discord: difference between total and classical correlations
+  // Approximate: discord ~ vonNeumann - classicalShannon
+  const classicalShannon = results ? (results.entropy?.shannon ?? 0) : 0;
+  const discord = Math.max(0, vonNeumann - classicalShannon);
+  // Entanglement entropy (bipartite: split into obs vs experimental)
+  const obsIdx = [], expIdx = [];
+  studies.forEach((s, i) => { if (s.design === 'obs') obsIdx.push(i); else expIdx.push(i); });
+  let entanglementEntropy = 0;
+  if (obsIdx.length > 0 && expIdx.length > 0) {
+    // Reduced density matrix trace
+    const crossFidelity = obsIdx.reduce((s, oi) =>
+      s + expIdx.reduce((s2, ei) => s2 + fidelityMatrix[oi][ei], 0), 0) / (obsIdx.length * expIdx.length);
+    entanglementEntropy = -crossFidelity * Math.log2(Math.max(crossFidelity, 1e-10)) - (1 - crossFidelity) * Math.log2(Math.max(1 - crossFidelity, 1e-10));
+  }
+  // Quantum coherence: off-diagonal norm of rho
+  let coherence = 0;
+  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) {
+    if (i !== j) coherence += Math.abs(fidelityMatrix[i][j]);
+  }
+  coherence /= (k * (k - 1) || 1);
+  return { vonNeumann, maxVN, normalizedVN: maxVN > 0 ? vonNeumann / maxVN : 0, discord, entanglementEntropy, coherence, fidelityMatrix };
+}
+
+// 14. CATEGORY THEORY
+// Objects = studies. Morphisms = "evidence paths" (weighted by consistency).
+// Compute: colimit (universal pooled effect), limits, natural transformation norm.
+function categoryTheory(studies) {
+  const k = studies.length;
+  // Weighted colimit: the universal cone over the diagram of studies
+  // In the category of probability spaces, the colimit is the mixture distribution
+  // The "universal property" score: how well does the pooled effect represent ALL morphisms?
+  const wi = studies.map(s => 1 / s.vi);
+  const W = wi.reduce((a, b) => a + b, 0);
+  const colimitMu = wi.reduce((s, w, i) => s + w * studies[i].yi, 0) / W;
+  const colimitVar = 1 / W;
+  // For each study, compute the morphism distance to the colimit
+  const morphismDistances = studies.map(s => Math.abs(s.yi - colimitMu) / Math.sqrt(s.vi + colimitVar));
+  // Natural transformation norm: sup of morphism distances
+  // This measures how "unnatural" the pooling is — high norm = forced aggregation
+  const natTransNorm = Math.max(...morphismDistances);
+  // Pullback (limit): the "tightest" constraint = study with smallest CI containing colimit
+  const pullbacks = studies.map((s, i) => ({
+    study: s.study, contains: Math.abs(s.yi - colimitMu) < 1.96 * s.se, dist: morphismDistances[i]
+  }));
+  const pullbackCount = pullbacks.filter(p => p.contains).length;
+  // Functoriality score: does adding studies in any order give the same colimit?
+  // (It should for inverse-variance, but measure numerical stability)
+  let maxDeviation = 0;
+  for (let perm = 0; perm < Math.min(20, k); perm++) {
+    // Random prefix
+    const n = Math.floor(Math.random() * (k - 2)) + 2;
+    const subset = [...studies].sort(() => Math.random() - 0.5).slice(0, n);
+    const swi = subset.map(s => 1 / s.vi);
+    const sW = swi.reduce((a, b) => a + b, 0);
+    const sMu = swi.reduce((s2, w, i) => s2 + w * subset[i].yi, 0) / sW;
+    maxDeviation = Math.max(maxDeviation, Math.abs(sMu - colimitMu));
+  }
+  // Kan extension: left Kan extension along the forgetful functor (design -> effect)
+  // Groups effects by design and computes the "best approximation" per design
+  const designGroups = {};
+  studies.forEach(s => { if (!designGroups[s.design]) designGroups[s.design] = []; designGroups[s.design].push(s); });
+  const kanExtension = {};
+  for (const [d, group] of Object.entries(designGroups)) {
+    const gwi = group.map(s => 1 / s.vi);
+    const gW = gwi.reduce((a, b) => a + b, 0);
+    kanExtension[d] = { mu: gwi.reduce((s, w, i) => s + w * group[i].yi, 0) / gW, k: group.length };
+  }
+  return { colimit: { mu: colimitMu, var: colimitVar }, natTransNorm, pullbackCount, pullbackTotal: k, maxDeviation, kanExtension, morphismDistances };
+}
+
+// 15. TROPICAL GEOMETRY
+// Replace (R, +, *) with the tropical semiring (R, min, +).
+// Tropical convex hull, tropical determinant, tropical eigenvalues.
+function tropicalGeometry(studies) {
+  const effects = studies.map(s => s.yi);
+  const k = effects.length;
+  // Tropical addition: a (+) b = min(a, b)
+  // Tropical multiplication: a (*) b = a + b
+  // Tropical mean: the value minimizing sum of tropical distances
+  // In 1D: tropical barycenter = median (minimizes L1 distance)
+  const sorted = [...effects].sort((a, b) => a - b);
+  const tropicalMean = sorted[Math.floor(k / 2)]; // median
+  // Tropical distance matrix: d_T(i,j) = |yi - yj| (L1)
+  const tropDist = [];
+  for (let i = 0; i < k; i++) {
+    tropDist[i] = [];
+    for (let j = 0; j < k; j++) tropDist[i][j] = Math.abs(effects[i] - effects[j]);
+  }
+  // Tropical determinant: perm(A) in min-plus = min over permutations of sum of entries
+  // For small k, compute exactly; for large k, approximate
+  let tropDet = Infinity;
+  if (k <= 8) {
+    // Enumerate permutations (k! — only feasible for small k)
+    function permute(arr) {
+      if (arr.length <= 1) return [arr];
+      const result = [];
+      for (let i = 0; i < arr.length; i++) {
+        const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+        for (const p of permute(rest)) result.push([arr[i], ...p]);
+      }
+      return result;
+    }
+    const indices = Array.from({ length: k }, (_, i) => i);
+    for (const perm of permute(indices)) {
+      const val = perm.reduce((s, j, i) => s + tropDist[i][j], 0);
+      tropDet = Math.min(tropDet, val);
+    }
+  } else {
+    // Hungarian algorithm approximation: greedy min assignment
+    const used = new Set();
+    tropDet = 0;
+    for (let i = 0; i < k; i++) {
+      let minVal = Infinity, minJ = -1;
+      for (let j = 0; j < k; j++) {
+        if (!used.has(j) && tropDist[i][j] < minVal) { minVal = tropDist[i][j]; minJ = j; }
+      }
+      tropDet += minVal;
+      used.add(minJ);
+    }
+  }
+  // Tropical convex hull vertices: the "extremal" studies in tropical sense
+  // A point is tropically extreme if it cannot be written as tropical combination of others
+  const tropExtremes = [];
+  for (let i = 0; i < k; i++) {
+    let isExtreme = true;
+    for (let j = 0; j < k; j++) {
+      if (i === j) continue;
+      for (let l = j + 1; l < k; l++) {
+        if (l === i) continue;
+        // Check if effects[i] is between effects[j] and effects[l]
+        if (Math.min(effects[j], effects[l]) <= effects[i] && effects[i] <= Math.max(effects[j], effects[l])) {
+          isExtreme = false; break;
+        }
+      }
+      if (!isExtreme) break;
+    }
+    if (isExtreme) tropExtremes.push(i);
+  }
+  // Tropical rank: dimension of the tropical span
+  const tropRank = tropExtremes.length;
+  return { tropicalMean, tropDet, tropExtremes, tropRank, tropDist };
+}
+
+// 16. p-ADIC ANALYSIS
+// Embed effect sizes in the p-adic numbers Q_p. The ultrametric distance
+// |x-y|_p gives a fundamentally different notion of "closeness."
+function padicAnalysis(studies) {
+  const effects = studies.map(s => s.yi);
+  const k = effects.length;
+  const p = 2; // use 2-adic valuation
+  // p-adic valuation: v_p(x) = largest power of p dividing numerator - denominator
+  // For reals, discretize: multiply by 1000, take integer part
+  function padicVal(x) {
+    if (x === 0) return Infinity;
+    let n = Math.abs(Math.round(x * 10000));
+    if (n === 0) return 20; // cap
+    let v = 0;
+    while (n % p === 0 && n > 0) { v++; n /= p; }
+    return v;
+  }
+  function padicNorm(x) {
+    const v = padicVal(x);
+    return v === Infinity ? 0 : Math.pow(p, -v);
+  }
+  // Ultrametric distance: |x - y|_p
+  const ultraDist = [];
+  for (let i = 0; i < k; i++) {
+    ultraDist[i] = [];
+    for (let j = 0; j < k; j++) {
+      ultraDist[i][j] = padicNorm(effects[i] - effects[j]);
+    }
+  }
+  // Ultrametric property check: |x-z|_p <= max(|x-y|_p, |y-z|_p) for all triples
+  let ultrametricViolations = 0, totalTriples = 0;
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) for (let l = j + 1; l < k; l++) {
+    totalTriples++;
+    const d12 = ultraDist[i][j], d23 = ultraDist[j][l], d13 = ultraDist[i][l];
+    if (d13 > Math.max(d12, d23) + 1e-10) ultrametricViolations++;
+    if (d12 > Math.max(d13, d23) + 1e-10) ultrametricViolations++;
+    if (d23 > Math.max(d12, d13) + 1e-10) ultrametricViolations++;
+  }
+  // p-adic barycenter: the effect with smallest total ultrametric distance
+  let padicCenter = 0, minTotalDist = Infinity;
+  for (let i = 0; i < k; i++) {
+    const total = ultraDist[i].reduce((a, b) => a + b, 0);
+    if (total < minTotalDist) { minTotalDist = total; padicCenter = i; }
+  }
+  // p-adic diameter: max ultrametric distance
+  let diameter = 0;
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) diameter = Math.max(diameter, ultraDist[i][j]);
+  // p-adic clustering: studies with same p-adic valuation cluster together
+  const valuations = effects.map(e => padicVal(e));
+  const valGroups = {};
+  valuations.forEach((v, i) => { const key = Math.min(v, 15); if (!valGroups[key]) valGroups[key] = []; valGroups[key].push(i); });
+  return { p, ultraDist, ultrametricViolations, totalTriples, padicCenter: studies[padicCenter]?.study, diameter, valuations, nValGroups: Object.keys(valGroups).length, valGroups };
+}
+
+// 17. NON-COMMUTATIVE GEOMETRY (Connes)
+// The spectral distance on a "noncommutative space" of evidence.
+// d(phi, psi) = sup { |phi(a) - psi(a)| : ||[D, pi(a)]|| <= 1 }
+// where D is the Dirac operator.
+function noncommutativeGeometry(studies) {
+  const k = studies.length;
+  // Construct a "spectral triple" (A, H, D) for the evidence space
+  // A = algebra of "observables" (effect size functions)
+  // H = Hilbert space of study states
+  // D = Dirac operator (finite difference operator on the study graph)
+  // Connes distance: d(i,j) = sup_f |f(i)-f(j)| / ||[D,f]||
+  // For a finite graph, [D,f]_ij = (f(i)-f(j)) * D_ij
+  // Build D as the graph Laplacian (symmetrized adjacency)
+  const sigma = studies.reduce((s, st) => s + st.se, 0) / k;
+  const adj = [];
+  for (let i = 0; i < k; i++) {
+    adj[i] = [];
+    for (let j = 0; j < k; j++) {
+      adj[i][j] = i === j ? 0 : Math.exp(-((studies[i].yi - studies[j].yi) ** 2) / (2 * sigma * sigma));
+    }
+  }
+  // Connes spectral distance between each pair
+  const connesDist = [];
+  for (let i = 0; i < k; i++) {
+    connesDist[i] = [];
+    for (let j = 0; j < k; j++) {
+      if (i === j) { connesDist[i][j] = 0; continue; }
+      // Use Lipschitz characterization: d(i,j) = 1 / max_path(min_edge_weight)
+      // Simplified: d(i,j) = 1 / adj[i][j] if connected, else infinity
+      connesDist[i][j] = adj[i][j] > 1e-10 ? 1 / adj[i][j] : 100;
+    }
+  }
+  // Dixmier trace: noncommutative "integral"
+  // For finite spectral triples, approximate via zeta function residue
+  // zeta_D(s) = sum lambda_i^(-s)
+  const laplacianEigs = results?.spectral?.eigenvalues ?? [];
+  const positiveEigs = laplacianEigs.filter(e => e > 0.01);
+  let dixmierTrace = 0;
+  if (positiveEigs.length > 0) {
+    // Residue at s=1 of sum lambda^(-s) ~ N * (1/(s-1)) => coefficient is the "dimension"
+    const s = 1.01; // near the pole
+    dixmierTrace = positiveEigs.reduce((sum, e) => sum + Math.pow(e, -s), 0) / positiveEigs.length;
+  }
+  // Spectral dimension: scaling of eigenvalue counting function
+  // N(lambda) ~ lambda^(d/2) => d = 2 * log(N) / log(lambda_max)
+  const spectralDim = positiveEigs.length > 1 ? 2 * Math.log(positiveEigs.length) / Math.log(Math.max(...positiveEigs, 2)) : 1;
+  // Noncommutative "volume": Wodzicki residue proxy
+  const ncVolume = positiveEigs.reduce((s, e) => s + 1 / e, 0);
+  return { connesDist, dixmierTrace, spectralDim, ncVolume, nEigs: positiveEigs.length };
+}
+
 // MAIN ANALYSIS
 // ============================================================
 function runHyperMeta() {
@@ -859,6 +1169,17 @@ function runHyperMeta() {
   const morse = morseTheory(studies);
   const kolmogorov = kolmogorovComplexity(studies);
   results = { poincare, topo, wasserstein, spectral, entropy, attractor, fractal, sheaf, ricci, infoGeom, morse, kolmogorov };
+  // Layer 3
+  const quantum = quantumInformation(studies);
+  const category = categoryTheory(studies);
+  const tropical = tropicalGeometry(studies);
+  const padic = padicAnalysis(studies);
+  const ncGeom = noncommutativeGeometry(studies);
+  results.quantum = quantum;
+  results.category = category;
+  results.tropical = tropical;
+  results.padic = padic;
+  results.ncGeom = ncGeom;
   renderAll();
 }
 
@@ -880,6 +1201,12 @@ function renderAll() {
   renderInfoGeom();
   renderMorse();
   renderKolmogorov();
+  // Layer 3
+  renderQuantum();
+  renderCategory();
+  renderTropical();
+  renderPadic();
+  renderNCGeom();
   renderInterpretation();
   document.getElementById('metricsGrid').scrollIntoView({ behavior: 'smooth' });
 }
@@ -900,7 +1227,12 @@ function renderMetrics() {
     { val: r.ricci.avgCurvature.toFixed(3), lbl: 'Avg Ollivier-Ricci Curvature', cls: r.ricci.avgCurvature >= 0 ? 'val-green' : 'val-red' },
     { val: r.infoGeom.geodesicVar.toFixed(3), lbl: 'Geodesic Variance (Fisher-Rao)', cls: 'val-magenta' },
     { val: `${r.morse.maxima.length}p ${r.morse.minima.length}v`, lbl: 'Morse Critical Points (peaks/valleys)', cls: 'val-gold' },
-    { val: `${(r.kolmogorov.compressibility * 100).toFixed(0)}%`, lbl: 'Kolmogorov Compressibility', cls: r.kolmogorov.compressibility > 0.3 ? 'val-green' : 'val-red' }
+    { val: `${(r.kolmogorov.compressibility * 100).toFixed(0)}%`, lbl: 'Kolmogorov Compressibility', cls: r.kolmogorov.compressibility > 0.3 ? 'val-green' : 'val-red' },
+    { val: r.quantum.vonNeumann.toFixed(3), lbl: 'Von Neumann Entropy', cls: 'val-blue' },
+    { val: r.category.natTransNorm.toFixed(3), lbl: 'Nat. Transformation Norm', cls: 'val-magenta' },
+    { val: r.tropical.tropRank.toString(), lbl: 'Tropical Rank', cls: 'val-gold' },
+    { val: r.padic.diameter.toFixed(3), lbl: '2-adic Diameter', cls: 'val-cyan' },
+    { val: r.ncGeom.spectralDim.toFixed(2), lbl: 'NC Spectral Dimension', cls: 'val-magenta' }
   ];
   document.getElementById('metricsGrid').innerHTML = metrics.map(m =>
     `<div class="metric-card"><div class="val ${m.cls}">${m.val}</div><div class="lbl">${m.lbl}</div></div>`
@@ -1296,6 +1628,66 @@ function renderKolmogorov() {
   document.getElementById('kolmogorovContent').innerHTML = html;
 }
 
+// ============================================================
+// LAYER 3 RENDERING
+// ============================================================
+
+function renderQuantum() {
+  const q = results.quantum;
+  let html = '<div class="grid-3">';
+  html += `<div class="metric-card"><div class="val val-blue">${q.vonNeumann.toFixed(3)}</div><div class="lbl">Von Neumann Entropy</div></div>`;
+  html += `<div class="metric-card"><div class="val val-magenta">${q.coherence.toFixed(3)}</div><div class="lbl">Quantum Coherence</div></div>`;
+  html += `<div class="metric-card"><div class="val val-gold">${q.entanglementEntropy.toFixed(3)}</div><div class="lbl">Entanglement (obs|exp)</div></div>`;
+  html += '</div>';
+  html += `<div style="margin-top:8px;font-size:.82rem;color:var(--text2)">Von Neumann S = ${q.vonNeumann.toFixed(3)} / ${q.maxVN.toFixed(1)} (${(q.normalizedVN * 100).toFixed(0)}% of max). ${q.normalizedVN > 0.7 ? 'Near-maximally mixed quantum state — the evidence is in a high-entropy superposition with no dominant "measurement outcome."' : q.normalizedVN > 0.4 ? 'Partially mixed state — some quantum coherence remains between study states.' : 'Low entropy — the evidence collapses toward a definite quantum state.'} ${q.entanglementEntropy > 0.5 ? 'High entanglement between observational and experimental designs — they are quantum-correlated (cannot be understood independently).' : ''}</div>`;
+  document.getElementById('quantumContent').innerHTML = html;
+}
+
+function renderCategory() {
+  const c = results.category;
+  let html = '<div class="grid-3">';
+  html += `<div class="metric-card"><div class="val val-magenta">${c.colimit.mu.toFixed(4)}</div><div class="lbl">Colimit (Pooled)</div></div>`;
+  html += `<div class="metric-card"><div class="val val-red">${c.natTransNorm.toFixed(3)}</div><div class="lbl">Nat. Trans. Norm</div></div>`;
+  html += `<div class="metric-card"><div class="val val-green">${c.pullbackCount}/${c.pullbackTotal}</div><div class="lbl">Pullback Coverage</div></div>`;
+  html += '</div>';
+  // Kan extension per design
+  let kanHtml = '<div style="margin-top:8px;font-size:.8rem">';
+  for (const [d, ke] of Object.entries(c.kanExtension)) {
+    kanHtml += `<span style="display:inline-block;margin:2px 6px;padding:2px 8px;background:var(--bg3);border-radius:6px"><strong>${escapeHtml(d)}</strong>: ${ke.mu.toFixed(3)} (k=${ke.k})</span>`;
+  }
+  kanHtml += '</div>';
+  html += kanHtml;
+  html += `<div style="margin-top:6px;font-size:.82rem;color:var(--text2)">${c.natTransNorm > 2 ? 'High natural transformation norm — the colimit is a "forced" aggregation. Some studies are far from the universal cone, meaning the pooled effect poorly represents the category.' : 'Moderate norm — the categorical colimit is a reasonable universal construction.'} ${c.pullbackCount}/${c.pullbackTotal} studies contain the colimit in their 95% CI (pullback coverage).</div>`;
+  document.getElementById('categoryContent').innerHTML = html;
+}
+
+function renderTropical() {
+  const t = results.tropical;
+  let html = `<div style="font-size:.85rem"><strong style="color:var(--gold)">Tropical mean:</strong> <span style="font-family:var(--mono)">${t.tropicalMean.toFixed(4)}</span> (= median in min-plus)</div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--gold)">Tropical det:</strong> <span style="font-family:var(--mono)">${t.tropDet.toFixed(3)}</span></div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--gold)">Tropical rank:</strong> ${t.tropRank} extreme vertices</div>`;
+  html += `<div style="margin-top:6px;font-size:.78rem;color:var(--text2)">${t.tropRank <= 2 ? 'Low tropical rank — the evidence lives on a tropical line (1D structure).' : t.tropRank <= 4 ? 'Moderate tropical rank — the evidence spans a tropical polytope of moderate dimension.' : 'High tropical rank — the evidence occupies a high-dimensional tropical convex hull, indicating complex combinatorial structure.'}</div>`;
+  document.getElementById('tropicalContent').innerHTML = html;
+}
+
+function renderPadic() {
+  const pa = results.padic;
+  let html = `<div style="font-size:.85rem"><strong style="color:var(--cyan)">${pa.p}-adic center:</strong> ${escapeHtml(pa.padicCenter ?? '?')}</div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--cyan)">Ultrametric diameter:</strong> <span style="font-family:var(--mono)">${pa.diameter.toFixed(3)}</span></div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--cyan)">Valuation groups:</strong> ${pa.nValGroups}</div>`;
+  html += `<div style="margin-top:6px;font-size:.78rem;color:var(--text2)">${pa.ultrametricViolations === 0 ? 'Perfect ultrametric — the p-adic distance satisfies the strong triangle inequality on all triples. The evidence has a natural hierarchical (tree-like) structure.' : `${pa.ultrametricViolations}/${pa.totalTriples} ultrametric violations — the evidence is not perfectly hierarchical in p-adic space.`}</div>`;
+  document.getElementById('padicContent').innerHTML = html;
+}
+
+function renderNCGeom() {
+  const nc = results.ncGeom;
+  let html = `<div style="font-size:.85rem"><strong style="color:var(--magenta)">Spectral dim:</strong> <span style="font-family:var(--mono)">${nc.spectralDim.toFixed(2)}</span></div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--magenta)">Dixmier trace:</strong> <span style="font-family:var(--mono)">${nc.dixmierTrace.toFixed(4)}</span></div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--magenta)">NC volume:</strong> <span style="font-family:var(--mono)">${nc.ncVolume.toFixed(3)}</span></div>`;
+  html += `<div style="margin-top:6px;font-size:.78rem;color:var(--text2)">${nc.spectralDim < 1.5 ? 'Low spectral dimension — the evidence "space" is essentially 1-dimensional from the noncommutative viewpoint.' : nc.spectralDim < 3 ? 'Moderate spectral dimension — the evidence has genuine multi-dimensional structure in the sense of Connes.' : 'High spectral dimension — rich noncommutative geometry, suggesting the evidence space cannot be captured by classical manifolds.'}</div>`;
+  document.getElementById('ncGeomContent').innerHTML = html;
+}
+
 function renderInterpretation() {
   const r = results;
   const p = r.poincare, t = r.topo, w = r.wasserstein, s = r.spectral, e = r.entropy, a = r.attractor, f = r.fractal;
@@ -1356,6 +1748,26 @@ function renderInterpretation() {
   // Kolmogorov
   html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem;grid-column:1/-1">
     <span style="font-weight:700;color:var(--blue)">Kolmogorov Complexity:</span> Compressibility = ${(r.kolmogorov.compressibility * 100).toFixed(0)}%. ${r.kolmogorov.compressibility > 0.3 ? 'The evidence disagreement has hidden structure — a systematic explanation exists (confounding, design bias, population differences).' : 'The disagreement is algorithmically random — no simple explanation can account for the pattern of results.'}
+  </div>`;
+  html += '</div></div>';
+  // Layer 3
+  html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">';
+  html += '<div style="font-size:.8rem;font-weight:700;color:var(--gold);margin-bottom:8px;letter-spacing:.1em;text-transform:uppercase">Layer 3: The Abyss</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:#c4b5fd">Quantum:</span> Von Neumann S = ${r.quantum.vonNeumann.toFixed(3)} (${(r.quantum.normalizedVN*100).toFixed(0)}%). ${r.quantum.entanglementEntropy > 0.5 ? 'Design groups are quantum-entangled — their evidence states cannot be factored into independent components.' : 'Low entanglement — design groups carry mostly independent information.'}
+  </div>`;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--magenta)">Category:</span> Nat. trans. norm = ${r.category.natTransNorm.toFixed(2)}. ${r.category.natTransNorm > 2 ? 'The categorical pooling is highly unnatural — the colimit forces distant studies together.' : 'The colimit is a natural construction.'} Kan extensions show per-design effects.
+  </div>`;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--gold)">Tropical:</span> Rank ${r.tropical.tropRank}. Tropical det = ${r.tropical.tropDet.toFixed(2)}. The min-plus algebra reveals ${r.tropical.tropRank <= 2 ? 'a simple linear structure' : 'a complex polytope'} in tropical space.
+  </div>`;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--cyan)">p-Adic:</span> 2-adic diameter = ${r.padic.diameter.toFixed(3)}, ${r.padic.nValGroups} valuation groups. The ultrametric ${r.padic.ultrametricViolations === 0 ? 'is perfect — evidence forms a natural hierarchy in p-adic space.' : 'has violations — evidence resists hierarchical classification.'}
+  </div>`;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem;grid-column:1/-1">
+    <span style="font-weight:700;color:var(--magenta)">NC Geometry (Connes):</span> Spectral dimension = ${r.ncGeom.spectralDim.toFixed(2)}, Dixmier trace = ${r.ncGeom.dixmierTrace.toFixed(4)}. The noncommutative space of evidence has ${r.ncGeom.spectralDim < 2 ? 'low dimensionality — evidence is classically well-behaved' : 'high dimensionality — the evidence space has genuinely noncommutative structure that classical statistics cannot capture'}.
   </div>`;
   html += '</div></div>';
   document.getElementById('interpretContent').innerHTML = html;
