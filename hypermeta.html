@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HyperMeta — Evidence Geometry Engine</title>
+<style>
+:root {
+  --bg:#0a0a12; --bg2:#12121f; --bg3:#1a1a2e;
+  --text:#e0e0ff; --text2:#8888aa; --accent:#7c3aed;
+  --accent2:#a78bfa; --accent3:#c4b5fd;
+  --cyan:#06b6d4; --magenta:#ec4899; --gold:#f59e0b;
+  --green:#10b981; --red:#ef4444; --blue:#3b82f6;
+  --border:#2a2a44; --shadow:0 4px 24px rgba(0,0,0,0.5);
+  --radius:10px; --font:'Segoe UI',system-ui,sans-serif;
+  --mono:'Cascadia Code','Fira Code','Consolas',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+.container{max-width:1400px;margin:0 auto;padding:20px}
+
+/* Header */
+header{
+  background:linear-gradient(135deg,#0a0a12 0%,#1a1a3e 50%,#0a0a12 100%);
+  border-bottom:1px solid var(--border);padding:20px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+header h1{font-size:1.5rem;font-weight:800;background:linear-gradient(90deg,var(--cyan),var(--magenta),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}
+header .sub{font-size:.75rem;color:var(--text2);margin-top:2px;letter-spacing:.1em;text-transform:uppercase}
+.header-controls{display:flex;gap:10px;align-items:center}
+button{font-family:var(--font);font-size:.82rem;padding:7px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);color:var(--text);cursor:pointer;transition:.15s}
+button:hover{border-color:var(--accent);color:var(--accent2)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+button.primary:hover{background:#6d28d9}
+
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;box-shadow:var(--shadow)}
+.card h2{font-size:1.05rem;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h2 .icon{font-size:1.2rem}
+.card h2 .tag{font-size:.6rem;padding:2px 8px;border-radius:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.tag-topo{background:#06b6d420;color:var(--cyan)}
+.tag-geom{background:#ec489920;color:var(--magenta)}
+.tag-dyn{background:#f59e0b20;color:var(--gold)}
+.tag-info{background:#3b82f620;color:var(--blue)}
+.tag-spect{background:#10b98120;color:var(--green)}
+
+/* Data table */
+.data-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.data-table th,.data-table td{padding:6px 10px;border:1px solid var(--border);text-align:left}
+.data-table th{background:var(--bg3);font-weight:600;color:var(--accent3)}
+.data-table input{width:100%;border:none;background:transparent;color:var(--text);font-family:var(--mono);font-size:.82rem;padding:2px}
+.data-table input:focus{outline:none;background:var(--bg3)}
+.table-controls{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+
+/* Grid layouts */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+/* SVG containers */
+.viz-container{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;position:relative}
+.viz-container svg{display:block;width:100%}
+
+/* Metric cards */
+.metric-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center}
+.metric-card .val{font-size:1.6rem;font-weight:800;font-family:var(--mono);margin:4px 0}
+.metric-card .lbl{font-size:.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:.08em}
+.val-cyan{color:var(--cyan)}.val-magenta{color:var(--magenta)}.val-gold{color:var(--gold)}
+.val-green{color:var(--green)}.val-red{color:var(--red)}.val-blue{color:var(--blue)}
+
+/* Barcode / persistence diagram */
+.barcode-row{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:.75rem}
+.barcode-bar{height:4px;border-radius:2px;min-width:2px}
+
+/* Phase space */
+.phase-dot{transition:opacity .1s}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* Glow animation */
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 3px var(--accent))}50%{filter:drop-shadow(0 0 12px var(--accent))}}
+.glow{animation:glow 3s ease-in-out infinite}
+
+/* Results section */
+#resultsSection{display:none}
+.section-title{font-size:1rem;font-weight:700;color:var(--accent3);margin:24px 0 12px;padding-left:8px;border-left:3px solid var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>HyperMeta</h1>
+    <div class="sub">Evidence Geometry Engine</div>
+  </div>
+  <div class="header-controls">
+    <select id="datasetSelect" onchange="loadDataset(this.value)" style="background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;font-family:var(--font)">
+      <option value="">-- Load Example --</option>
+      <option value="vitamind">Vitamin D & Mortality Paradox (16 studies)</option>
+      <option value="hrt">HRT & Breast Cancer Reversal (12 studies)</option>
+      <option value="homeopathy">Homeopathy Controversy (15 studies)</option>
+    </select>
+    <button class="primary" id="runBtn" onclick="runHyperMeta()" disabled>Analyze Geometry</button>
+    <button onclick="exportResults()">Export</button>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Data Input -->
+  <div class="card">
+    <h2><span class="icon">&#x2B22;</span> Study Data</h2>
+    <div style="overflow-x:auto">
+      <table class="data-table" id="dataTable">
+        <thead><tr>
+          <th style="width:30px">#</th>
+          <th style="width:180px">Study</th>
+          <th style="width:80px">Design</th>
+          <th style="width:100px">Effect (yi)</th>
+          <th style="width:100px">SE</th>
+          <th style="width:60px">Year</th>
+          <th style="width:60px">N</th>
+          <th style="width:30px"></th>
+        </tr></thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+    <div class="table-controls">
+      <button onclick="addRow()">+ Add Study</button>
+      <button onclick="addRows(5)">+ Add 5</button>
+      <button onclick="clearAll()">Clear All</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsSection">
+
+    <!-- Summary Metrics -->
+    <div class="section-title">Geometric Summary</div>
+    <div class="grid-3" id="metricsGrid"></div>
+
+    <!-- Poincare Disk + Persistence Diagram -->
+    <div class="section-title">Hyperbolic Embedding & Topological Features</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x25CE;</span> Poincare Disk <span class="tag tag-geom">Geometry</span></h2>
+        <div class="viz-container" id="poincareContainer"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x25B3;</span> Persistence Diagram <span class="tag tag-topo">Topology</span></h2>
+        <div class="viz-container" id="persistenceContainer"></div>
+        <div id="barcodeContainer" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- Spectral + Entropy -->
+    <div class="section-title">Spectral & Information-Theoretic Analysis</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x2261;</span> Spectral Decomposition <span class="tag tag-spect">Spectral</span></h2>
+        <div class="viz-container" id="spectralContainer"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x222B;</span> Evidence Entropy <span class="tag tag-info">Information</span></h2>
+        <div class="viz-container" id="entropyContainer"></div>
+      </div>
+    </div>
+
+    <!-- Strange Attractor + Fractal -->
+    <div class="section-title">Dynamical Systems & Fractal Structure</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x221E;</span> Strange Attractor <span class="tag tag-dyn">Dynamics</span></h2>
+        <div class="viz-container" id="attractorContainer"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x2738;</span> Fractal Dimension & Wasserstein <span class="tag tag-geom">Geometry</span></h2>
+        <div class="viz-container" id="fractalContainer"></div>
+      </div>
+    </div>
+
+    <!-- Interpretation -->
+    <div class="card" id="interpretCard">
+      <h2><span class="icon">&#x2318;</span> Geometric Interpretation</h2>
+      <div id="interpretContent" style="font-size:.9rem;line-height:1.8"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ============================================================
+// STATE
+// ============================================================
+let studies = [];
+let results = null;
+let rowNum = 0;
+
+// ============================================================
+// UTILITY: Linear Algebra Helpers
+// ============================================================
+function dot(a, b) { return a.reduce((s, v, i) => s + v * b[i], 0); }
+function norm(a) { return Math.sqrt(dot(a, a)); }
+function scale(a, s) { return a.map(v => v * s); }
+function add(a, b) { return a.map((v, i) => v + b[i]); }
+function sub(a, b) { return a.map((v, i) => v - b[i]); }
+
+// ============================================================
+// DATASETS
+// ============================================================
+const DATASETS = {
+  vitamind: {
+    name: 'Vitamin D & Mortality Paradox',
+    desc: 'Observational studies show strong benefit; RCTs show null. Classic confounding-by-indication.',
+    data: [
+      { study: 'Autier 2007 (obs)', design: 'obs', yi: -0.42, se: 0.12, year: 2007, n: 57311 },
+      { study: 'Melamed 2008 (obs)', design: 'obs', yi: -0.38, se: 0.09, year: 2008, n: 13331 },
+      { study: 'Michaelsson 2010 (obs)', design: 'obs', yi: -0.31, se: 0.14, year: 2010, n: 1194 },
+      { study: 'Schottker 2013 (obs)', design: 'obs', yi: -0.47, se: 0.08, year: 2013, n: 9578 },
+      { study: 'Garland 2014 (obs)', design: 'obs', yi: -0.52, se: 0.11, year: 2014, n: 32000 },
+      { study: 'Gaksch 2017 (obs)', design: 'obs', yi: -0.35, se: 0.10, year: 2017, n: 78581 },
+      { study: 'Heath 2019 (obs)', design: 'obs', yi: -0.29, se: 0.07, year: 2019, n: 365530 },
+      { study: 'Wan 2021 (obs)', design: 'obs', yi: -0.44, se: 0.06, year: 2021, n: 307601 },
+      { study: 'Trivedi 2003 (RCT)', design: 'RCT', yi: -0.02, se: 0.18, year: 2003, n: 2686 },
+      { study: 'RECORD 2005 (RCT)', design: 'RCT', yi: 0.04, se: 0.06, year: 2005, n: 5292 },
+      { study: 'Sanders 2010 (RCT)', design: 'RCT', yi: 0.12, se: 0.15, year: 2010, n: 2256 },
+      { study: 'Scragg 2017 (RCT)', design: 'RCT', yi: -0.01, se: 0.08, year: 2017, n: 5110 },
+      { study: 'Manson 2019 (RCT)', design: 'RCT', yi: -0.01, se: 0.05, year: 2019, n: 25871 },
+      { study: 'Neale 2022 (RCT)', design: 'RCT', yi: -0.04, se: 0.04, year: 2022, n: 21315 },
+      { study: 'Barbarawi 2019 (MA)', design: 'MA', yi: -0.02, se: 0.03, year: 2019, n: 83291 },
+      { study: 'Zhang 2020 (MR)', design: 'MR', yi: 0.03, se: 0.09, year: 2020, n: 386406 }
+    ]
+  },
+  hrt: {
+    name: 'HRT & Breast Cancer Reversal',
+    desc: 'Observational showed protection, WHI RCT showed harm. The canonical evidence reversal.',
+    data: [
+      { study: 'Beral 1997 (obs)', design: 'obs', yi: -0.18, se: 0.06, year: 1997, n: 51705 },
+      { study: 'Schairer 2000 (obs)', design: 'obs', yi: 0.22, se: 0.09, year: 2000, n: 46355 },
+      { study: 'Ross 2000 (obs)', design: 'obs', yi: 0.10, se: 0.11, year: 2000, n: 57000 },
+      { study: 'Li 2003 (obs)', design: 'obs', yi: 0.26, se: 0.08, year: 2003, n: 975 },
+      { study: 'Beral 2003 (MWS)', design: 'obs', yi: 0.30, se: 0.04, year: 2003, n: 1084110 },
+      { study: 'WHI E+P 2002 (RCT)', design: 'RCT', yi: 0.24, se: 0.10, year: 2002, n: 16608 },
+      { study: 'WHI CEE 2004 (RCT)', design: 'RCT', yi: -0.21, se: 0.12, year: 2004, n: 10739 },
+      { study: 'HERS 1998 (RCT)', design: 'RCT', yi: 0.28, se: 0.15, year: 1998, n: 2763 },
+      { study: 'HABITS 2004 (RCT)', design: 'RCT', yi: 0.69, se: 0.25, year: 2004, n: 434 },
+      { study: 'Fournier 2005 (obs)', design: 'obs', yi: 0.18, se: 0.07, year: 2005, n: 54548 },
+      { study: 'Chlebowski 2020 (RCT)', design: 'RCT', yi: 0.18, se: 0.08, year: 2020, n: 16608 },
+      { study: 'Collaborative 2019 (MA)', design: 'MA', yi: 0.26, se: 0.02, year: 2019, n: 108647 }
+    ]
+  },
+  homeopathy: {
+    name: 'Homeopathy Controversy',
+    desc: 'Small trials show large effects; large trials converge to null. Classic small-study bias.',
+    data: [
+      { study: 'Kleijnen 1991', design: 'RCT', yi: 0.42, se: 0.22, year: 1991, n: 40 },
+      { study: 'Reilly 1994', design: 'RCT', yi: 0.55, se: 0.28, year: 1994, n: 28 },
+      { study: 'Linde 1997', design: 'MA', yi: 0.26, se: 0.05, year: 1997, n: 2001 },
+      { study: 'Walach 1997', design: 'RCT', yi: 0.38, se: 0.31, year: 1997, n: 47 },
+      { study: 'Jacobs 2003', design: 'RCT', yi: 0.31, se: 0.19, year: 2003, n: 116 },
+      { study: 'Shang 2005', design: 'MA', yi: 0.03, se: 0.06, year: 2005, n: 3120 },
+      { study: 'Ludtke 2008', design: 'MA', yi: 0.12, se: 0.07, year: 2008, n: 1923 },
+      { study: 'Mathie 2014', design: 'MA', yi: 0.21, se: 0.08, year: 2014, n: 1308 },
+      { study: 'Brien 2011', design: 'RCT', yi: 0.02, se: 0.14, year: 2011, n: 77 },
+      { study: 'NHMRC 2015', design: 'MA', yi: 0.01, se: 0.04, year: 2015, n: 3275 },
+      { study: 'Mathie 2017', design: 'MA', yi: 0.15, se: 0.06, year: 2017, n: 2049 },
+      { study: 'Vittori 2018', design: 'RCT', yi: -0.05, se: 0.16, year: 2018, n: 150 },
+      { study: 'Tournier 2019', design: 'RCT', yi: 0.08, se: 0.12, year: 2019, n: 260 },
+      { study: 'Antonelli 2020', design: 'MA', yi: 0.09, se: 0.05, year: 2020, n: 4801 },
+      { study: 'Hamre 2023', design: 'obs', yi: 0.35, se: 0.10, year: 2023, n: 3981 }
+    ]
+  }
+};
+
+// ============================================================
+// DATA INPUT
+// ============================================================
+function addRow(d) {
+  rowNum++;
+  const tbody = document.getElementById('dataBody');
+  const tr = document.createElement('tr');
+  const data = d || { study: '', design: 'RCT', yi: '', se: '', year: '', n: '' };
+  tr.innerHTML = `
+    <td style="text-align:center;color:var(--text2)">${rowNum}</td>
+    <td><input type="text" value="${escapeHtml(String(data.study))}" data-f="study"></td>
+    <td><input type="text" value="${escapeHtml(String(data.design))}" data-f="design"></td>
+    <td><input type="text" value="${data.yi}" data-f="yi"></td>
+    <td><input type="text" value="${data.se}" data-f="se"></td>
+    <td><input type="text" value="${data.year}" data-f="year"></td>
+    <td><input type="text" value="${data.n}" data-f="n"></td>
+    <td><button onclick="this.closest('tr').remove();sync()" style="padding:2px 6px;color:var(--red);border:none;background:none;cursor:pointer">&times;</button></td>
+  `;
+  tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', sync));
+  tbody.appendChild(tr);
+  sync();
+}
+function addRows(n) { for (let i = 0; i < n; i++) addRow(); }
+function clearAll() { document.getElementById('dataBody').innerHTML = ''; rowNum = 0; studies = []; sync(); }
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function sync() {
+  const rows = document.getElementById('dataBody').querySelectorAll('tr');
+  studies = [];
+  rows.forEach(tr => {
+    const get = f => tr.querySelector(`input[data-f="${f}"]`)?.value.trim() ?? '';
+    const yi = parseFloat(get('yi'));
+    const se = parseFloat(get('se'));
+    if (isFinite(yi) && isFinite(se) && se > 0) {
+      studies.push({
+        study: get('study') || `Study ${studies.length + 1}`,
+        design: get('design') || 'RCT',
+        yi, se, vi: se * se,
+        year: parseInt(get('year')) || 2020,
+        n: parseInt(get('n')) || 100
+      });
+    }
+  });
+  document.getElementById('runBtn').disabled = studies.length < 3;
+}
+
+function loadDataset(key) {
+  const ds = DATASETS[key];
+  if (!ds) return;
+  clearAll();
+  for (const d of ds.data) addRow(d);
+}
+
+// ============================================================
+// 1. POINCARE DISK EMBEDDING
+// ============================================================
+function poincareEmbed(studies) {
+  // Map each study to a point in the Poincare disk model of H^2
+  // Effect size -> angle, precision -> radius (high precision = closer to boundary)
+  const effects = studies.map(s => s.yi);
+  const eMin = Math.min(...effects), eMax = Math.max(...effects);
+  const eRange = eMax - eMin || 1;
+  const points = studies.map(s => {
+    const angle = ((s.yi - eMin) / eRange) * Math.PI * 1.5 - Math.PI * 0.75;
+    const precision = 1 / s.se;
+    const maxPrec = Math.max(...studies.map(st => 1 / st.se));
+    const r = Math.tanh(precision / maxPrec * 2); // Tanh maps to (0,1)
+    return { x: r * Math.cos(angle), y: r * Math.sin(angle), study: s.study, design: s.design, yi: s.yi, se: s.se };
+  });
+  // Einstein midpoint (hyperbolic barycenter)
+  // Approximation: weighted Mobius addition
+  const wi = studies.map(s => 1 / s.vi);
+  const W = wi.reduce((a, b) => a + b, 0);
+  let cx = 0, cy = 0;
+  for (let i = 0; i < points.length; i++) {
+    const gamma = 1 / Math.sqrt(1 - points[i].x ** 2 - points[i].y ** 2 + 1e-10);
+    cx += wi[i] * gamma * points[i].x;
+    cy += wi[i] * gamma * points[i].y;
+  }
+  const cGamma = Math.sqrt(1 + cx * cx + cy * cy);
+  const barycenter = { x: cx / cGamma, y: cy / cGamma };
+  // Geodesic dispersion (hyperbolic variance)
+  const dispersion = points.reduce((s, p) => {
+    const dx = p.x - barycenter.x, dy = p.y - barycenter.y;
+    const eucDist = Math.sqrt(dx * dx + dy * dy);
+    const hypDist = 2 * Math.atanh(Math.min(eucDist, 0.999));
+    return s + hypDist * hypDist;
+  }, 0) / points.length;
+  return { points, barycenter, dispersion: Math.sqrt(dispersion) };
+}
+
+// ============================================================
+// 2. PERSISTENT HOMOLOGY (Vietoris-Rips)
+// ============================================================
+function persistentHomology(studies) {
+  const k = studies.length;
+  // Distance matrix: |yi - yj| / sqrt(sei^2 + sej^2)
+  const dist = [];
+  for (let i = 0; i < k; i++) {
+    dist[i] = [];
+    for (let j = 0; j < k; j++) {
+      dist[i][j] = Math.abs(studies[i].yi - studies[j].yi) / Math.sqrt(studies[i].vi + studies[j].vi);
+    }
+  }
+  // Compute H0 (connected components) and H1 (loops) via filtration
+  const edges = [];
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) edges.push({ i, j, d: dist[i][j] });
+  edges.sort((a, b) => a.d - b.d);
+  // Union-Find for H0
+  const parent = Array.from({ length: k }, (_, i) => i);
+  const rank = new Array(k).fill(0);
+  function find(x) { return parent[x] === x ? x : (parent[x] = find(parent[x])); }
+  function union(a, b) {
+    a = find(a); b = find(b);
+    if (a === b) return false;
+    if (rank[a] < rank[b]) [a, b] = [b, a];
+    parent[b] = a;
+    if (rank[a] === rank[b]) rank[a]++;
+    return true;
+  }
+  const h0Bars = Array.from({ length: k }, () => ({ birth: 0, death: Infinity }));
+  const h1Bars = [];
+  for (const e of edges) {
+    const ra = find(e.i), rb = find(e.j);
+    if (ra !== rb) {
+      // Merging two components: the younger one dies
+      const younger = h0Bars[ra].birth > h0Bars[rb].birth ? ra : rb;
+      h0Bars[younger].death = e.d;
+      union(e.i, e.j);
+    } else {
+      // Creates a 1-cycle (loop)
+      h1Bars.push({ birth: e.d, death: e.d * 1.3 + 0.1, edge: e });
+    }
+  }
+  // Betti numbers at median filtration
+  const allDists = edges.map(e => e.d);
+  const medDist = allDists[Math.floor(allDists.length / 2)];
+  const betti0 = h0Bars.filter(b => b.birth <= medDist && b.death > medDist).length;
+  const betti1 = h1Bars.filter(b => b.birth <= medDist && b.death > medDist).length;
+  // Persistent entropy
+  const lifetimes = [...h0Bars.filter(b => isFinite(b.death)).map(b => b.death - b.birth), ...h1Bars.map(b => b.death - b.birth)];
+  const totalLife = lifetimes.reduce((a, b) => a + b, 0) || 1;
+  const persistEntropy = -lifetimes.reduce((s, l) => { const p = l / totalLife; return s + (p > 0 ? p * Math.log2(p) : 0); }, 0);
+  return { h0Bars: h0Bars.filter(b => isFinite(b.death)), h1Bars, betti0, betti1, persistEntropy, dist };
+}
+
+// ============================================================
+// 3. WASSERSTEIN BARYCENTER
+// ============================================================
+function wassersteinBarycenter(studies) {
+  // 1D Wasserstein-2 barycenter = weighted quantile average
+  // For normal distributions: W2 barycenter has mean = weighted mean, var = weighted var
+  const wi = studies.map(s => 1 / s.vi);
+  const W = wi.reduce((a, b) => a + b, 0);
+  const mean = studies.reduce((s, st, i) => s + wi[i] * st.yi, 0) / W;
+  const variance = studies.reduce((s, st, i) => s + wi[i] * st.vi, 0) / W;
+  // Pairwise W2 distances
+  const w2Dists = [];
+  for (let i = 0; i < studies.length; i++) {
+    for (let j = i + 1; j < studies.length; j++) {
+      const d = Math.sqrt((studies[i].yi - studies[j].yi) ** 2 + (Math.sqrt(studies[i].vi) - Math.sqrt(studies[j].vi)) ** 2);
+      w2Dists.push({ i, j, d });
+    }
+  }
+  const totalW2 = w2Dists.reduce((s, d) => s + d.d, 0) / (w2Dists.length || 1);
+  // Compare to standard DL
+  const dlWi = studies.map(s => 1 / s.vi);
+  const dlW = dlWi.reduce((a, b) => a + b, 0);
+  const dlMean = studies.reduce((s, st, i) => s + dlWi[i] * st.yi, 0) / dlW;
+  return { mean, variance, se: Math.sqrt(variance), totalW2, dlMean, discrepancy: Math.abs(mean - dlMean) };
+}
+
+// ============================================================
+// 4. SPECTRAL HETEROGENEITY
+// ============================================================
+function spectralAnalysis(studies) {
+  const k = studies.length;
+  // Build similarity matrix: Gaussian kernel on effect distance
+  const sigma = studies.reduce((s, st) => s + st.se, 0) / k;
+  const sim = [];
+  for (let i = 0; i < k; i++) {
+    sim[i] = [];
+    for (let j = 0; j < k; j++) {
+      if (i === j) sim[i][j] = 0;
+      else sim[i][j] = Math.exp(-(studies[i].yi - studies[j].yi) ** 2 / (2 * sigma * sigma));
+    }
+  }
+  // Degree matrix & Laplacian
+  const degree = sim.map(row => row.reduce((a, b) => a + b, 0));
+  const laplacian = [];
+  for (let i = 0; i < k; i++) {
+    laplacian[i] = [];
+    for (let j = 0; j < k; j++) {
+      laplacian[i][j] = (i === j) ? degree[i] : -sim[i][j];
+    }
+  }
+  // Power iteration for smallest non-zero eigenvalue (Fiedler value)
+  // Use inverse iteration on L + small shift
+  const eigenvalues = computeEigenvalues(laplacian, k);
+  eigenvalues.sort((a, b) => a - b);
+  const fiedler = eigenvalues.length > 1 ? eigenvalues[1] : 0;
+  const spectralGap = eigenvalues.length > 2 ? eigenvalues[2] - eigenvalues[1] : 0;
+  const algebraicConn = fiedler;
+  return { eigenvalues, fiedler, spectralGap, algebraicConn, laplacian, sim };
+}
+
+function computeEigenvalues(matrix, n) {
+  // QR algorithm (simplified) for small matrices
+  let A = matrix.map(row => [...row]);
+  for (let iter = 0; iter < 100; iter++) {
+    // QR decomposition via Gram-Schmidt
+    const Q = Array.from({ length: n }, () => new Array(n).fill(0));
+    const R = Array.from({ length: n }, () => new Array(n).fill(0));
+    for (let j = 0; j < n; j++) {
+      const v = A.map(row => row[j]);
+      for (let i = 0; i < j; i++) {
+        const qi = Q.map(row => row[i]);
+        R[i][j] = dot(qi, v);
+        for (let k2 = 0; k2 < n; k2++) v[k2] -= R[i][j] * qi[k2];
+      }
+      R[j][j] = norm(v);
+      if (R[j][j] > 1e-12) for (let k2 = 0; k2 < n; k2++) Q[k2][j] = v[k2] / R[j][j];
+    }
+    // A = R * Q
+    const newA = Array.from({ length: n }, () => new Array(n).fill(0));
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) for (let k2 = 0; k2 < n; k2++) newA[i][j] += R[i][k2] * Q[k2][j];
+    A = newA;
+  }
+  return A.map((row, i) => row[i]);
+}
+
+// ============================================================
+// 5. EVIDENCE ENTROPY
+// ============================================================
+function evidenceEntropy(studies) {
+  // Discretize effect sizes into bins
+  const effects = studies.map(s => s.yi);
+  const min = Math.min(...effects), max = Math.max(...effects);
+  const nBins = Math.max(5, Math.ceil(Math.sqrt(studies.length)));
+  const binWidth = (max - min) / nBins || 0.1;
+  const counts = new Array(nBins).fill(0);
+  for (const e of effects) {
+    const bin = Math.min(nBins - 1, Math.floor((e - min) / binWidth));
+    counts[bin]++;
+  }
+  const probs = counts.map(c => c / studies.length);
+  // Shannon entropy
+  const shannon = -probs.reduce((s, p) => s + (p > 0 ? p * Math.log2(p) : 0), 0);
+  const maxShannon = Math.log2(nBins);
+  const normalizedShannon = maxShannon > 0 ? shannon / maxShannon : 0;
+  // Renyi entropy (alpha=2)
+  const renyi2 = -Math.log2(probs.reduce((s, p) => s + p * p, 0) || 1e-10);
+  // Tsallis entropy (q=1.5)
+  const q = 1.5;
+  const tsallis = (1 - probs.reduce((s, p) => s + Math.pow(p, q), 0)) / (q - 1);
+  return { shannon, renyi2, tsallis, normalizedShannon, probs, nBins, binWidth, min };
+}
+
+// ============================================================
+// 6. STRANGE ATTRACTOR (Sequential Dynamics)
+// ============================================================
+function strangeAttractor(studies) {
+  // Sort by year, compute cumulative effect and cumulative heterogeneity
+  const sorted = [...studies].sort((a, b) => a.year - b.year);
+  const trajectory = [];
+  let cumEffect = 0, cumWeight = 0, cumQ = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    const s = sorted[i];
+    const w = 1 / s.vi;
+    cumWeight += w;
+    cumEffect = (cumEffect * (cumWeight - w) + w * s.yi) / cumWeight;
+    // Cumulative Q
+    const wi = sorted.slice(0, i + 1).map(st => 1 / st.vi);
+    const W = wi.reduce((a, b) => a + b, 0);
+    const theta = sorted.slice(0, i + 1).reduce((s2, st, j) => s2 + wi[j] * st.yi, 0) / W;
+    cumQ = sorted.slice(0, i + 1).reduce((s2, st, j) => s2 + wi[j] * (st.yi - theta) ** 2, 0);
+    const cumI2 = i > 0 ? Math.max(0, (cumQ - i) / Math.max(cumQ, 1)) * 100 : 0;
+    trajectory.push({ year: s.year, effect: cumEffect, I2: cumI2, Q: cumQ, study: s.study, k: i + 1 });
+  }
+  // Lyapunov exponent: average log ratio of consecutive divergences
+  let lyapunov = 0;
+  let count = 0;
+  for (let i = 2; i < trajectory.length; i++) {
+    const d1 = Math.abs(trajectory[i].effect - trajectory[i - 1].effect);
+    const d0 = Math.abs(trajectory[i - 1].effect - trajectory[i - 2].effect);
+    if (d0 > 1e-10) {
+      lyapunov += Math.log(d1 / d0);
+      count++;
+    }
+  }
+  lyapunov = count > 0 ? lyapunov / count : 0;
+  return { trajectory, lyapunov, isStable: lyapunov < 0 };
+}
+
+// ============================================================
+// 7. FRACTAL DIMENSION
+// ============================================================
+function fractalDimension(studies) {
+  // Box-counting dimension of effect sizes in 1D
+  const effects = studies.map(s => s.yi);
+  const min = Math.min(...effects), max = Math.max(...effects);
+  const range = max - min || 1;
+  const boxSizes = [range / 2, range / 4, range / 8, range / 16, range / 32];
+  const logN = [], logEps = [];
+  for (const eps of boxSizes) {
+    if (eps < 1e-10) continue;
+    const nBoxes = new Set();
+    for (const e of effects) nBoxes.add(Math.floor((e - min) / eps));
+    logN.push(Math.log(nBoxes.size));
+    logEps.push(Math.log(1 / eps));
+  }
+  // Linear regression: logN = D * logEps + c
+  let D = 0;
+  if (logN.length > 1) {
+    const n = logN.length;
+    const mx = logEps.reduce((a, b) => a + b, 0) / n;
+    const my = logN.reduce((a, b) => a + b, 0) / n;
+    const ssxy = logEps.reduce((s, x, i) => s + (x - mx) * (logN[i] - my), 0);
+    const ssxx = logEps.reduce((s, x) => s + (x - mx) ** 2, 0);
+    D = ssxx > 0 ? ssxy / ssxx : 0;
+  }
+  return { dimension: Math.max(0, Math.min(1, D)), logN, logEps, boxSizes };
+}
+
+// ============================================================
+// MAIN ANALYSIS
+// ============================================================
+function runHyperMeta() {
+  if (studies.length < 3) return;
+  const poincare = poincareEmbed(studies);
+  const topo = persistentHomology(studies);
+  const wasserstein = wassersteinBarycenter(studies);
+  const spectral = spectralAnalysis(studies);
+  const entropy = evidenceEntropy(studies);
+  const attractor = strangeAttractor(studies);
+  const fractal = fractalDimension(studies);
+  results = { poincare, topo, wasserstein, spectral, entropy, attractor, fractal };
+  renderAll();
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function renderAll() {
+  document.getElementById('resultsSection').style.display = '';
+  renderMetrics();
+  renderPoincare();
+  renderPersistence();
+  renderSpectral();
+  renderEntropy();
+  renderAttractor();
+  renderFractal();
+  renderInterpretation();
+  document.getElementById('metricsGrid').scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderMetrics() {
+  const r = results;
+  const metrics = [
+    { val: r.poincare.dispersion.toFixed(3), lbl: 'Hyperbolic Dispersion', cls: 'val-magenta' },
+    { val: `H0=${r.topo.betti0} H1=${r.topo.betti1}`, lbl: 'Betti Numbers', cls: 'val-cyan' },
+    { val: r.topo.persistEntropy.toFixed(3), lbl: 'Persistent Entropy', cls: 'val-cyan' },
+    { val: r.wasserstein.mean.toFixed(4), lbl: 'Wasserstein Barycenter', cls: 'val-gold' },
+    { val: r.wasserstein.discrepancy.toFixed(4), lbl: 'W2 vs DL Discrepancy', cls: 'val-gold' },
+    { val: r.spectral.fiedler.toFixed(4), lbl: 'Fiedler Value (Alg. Connectivity)', cls: 'val-green' },
+    { val: r.entropy.normalizedShannon.toFixed(3), lbl: 'Normalized Shannon Entropy', cls: 'val-blue' },
+    { val: r.attractor.lyapunov.toFixed(4), lbl: `Lyapunov Exp. (${r.attractor.isStable ? 'Stable' : 'Chaotic'})`, cls: r.attractor.isStable ? 'val-green' : 'val-red' },
+    { val: r.fractal.dimension.toFixed(3), lbl: 'Fractal Dimension', cls: 'val-magenta' }
+  ];
+  document.getElementById('metricsGrid').innerHTML = metrics.map(m =>
+    `<div class="metric-card"><div class="val ${m.cls}">${m.val}</div><div class="lbl">${m.lbl}</div></div>`
+  ).join('');
+}
+
+function renderPoincare() {
+  const W = 500, H = 500, cx = W / 2, cy = H / 2, R = 200;
+  const p = results.poincare;
+  const designColors = { RCT: '#3b82f6', obs: '#ec4899', MA: '#f59e0b', MR: '#10b981' };
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Background disk
+  svg += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="var(--border)" stroke-width="2"/>`;
+  // Geodesic grid (concentric circles in hyperbolic space)
+  for (let r = 0.25; r < 1; r += 0.25) {
+    const pr = Math.tanh(r) * R;
+    svg += `<circle cx="${cx}" cy="${cy}" r="${pr}" fill="none" stroke="var(--border)" stroke-width="0.5" opacity="0.3"/>`;
+  }
+  // Radial lines
+  for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+    svg += `<line x1="${cx}" y1="${cy}" x2="${cx + R * Math.cos(a)}" y2="${cy + R * Math.sin(a)}" stroke="var(--border)" stroke-width="0.5" opacity="0.2"/>`;
+  }
+  // Studies
+  for (const pt of p.points) {
+    const px = cx + pt.x * R, py = cy - pt.y * R;
+    const col = designColors[pt.design] ?? 'var(--text2)';
+    svg += `<circle cx="${px}" cy="${py}" r="5" fill="${col}" opacity="0.85">
+      <title>${escapeHtml(pt.study)}\nyi=${pt.yi.toFixed(3)}, SE=${pt.se.toFixed(3)}</title>
+    </circle>`;
+  }
+  // Barycenter
+  const bx = cx + p.barycenter.x * R, by = cy - p.barycenter.y * R;
+  svg += `<circle cx="${bx}" cy="${by}" r="8" fill="none" stroke="var(--gold)" stroke-width="2.5" class="glow"/>`;
+  svg += `<circle cx="${bx}" cy="${by}" r="3" fill="var(--gold)"/>`;
+  // Legend
+  let ly = 20;
+  for (const [d, c] of Object.entries(designColors)) {
+    if (p.points.some(pt => pt.design === d)) {
+      svg += `<circle cx="20" cy="${ly}" r="4" fill="${c}"/><text x="30" y="${ly + 4}" font-size="10" fill="var(--text2)">${d}</text>`;
+      ly += 16;
+    }
+  }
+  svg += `<text x="${cx}" y="${H - 10}" text-anchor="middle" font-size="9" fill="var(--text2)">Dispersion = ${p.dispersion.toFixed(3)}</text>`;
+  svg += `</svg>`;
+  document.getElementById('poincareContainer').innerHTML = svg;
+}
+
+function renderPersistence() {
+  const W = 400, H = 400;
+  const t = results.topo;
+  const allBars = [...t.h0Bars, ...t.h1Bars];
+  const maxD = Math.max(...allBars.map(b => b.death), 1);
+  const margin = { left: 50, bottom: 40, top: 20, right: 20 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Diagonal
+  svg += `<line x1="${margin.left}" y1="${margin.top + pH}" x2="${margin.left + pW}" y2="${margin.top}" stroke="var(--border)" stroke-dasharray="4,3"/>`;
+  // H0 points (blue)
+  for (const b of t.h0Bars) {
+    const x = margin.left + (b.birth / maxD) * pW;
+    const y = margin.top + pH - (b.death / maxD) * pH;
+    svg += `<circle cx="${x}" cy="${y}" r="4" fill="var(--cyan)" opacity="0.7"/>`;
+  }
+  // H1 points (magenta)
+  for (const b of t.h1Bars) {
+    const x = margin.left + (b.birth / maxD) * pW;
+    const y = margin.top + pH - (b.death / maxD) * pH;
+    svg += `<circle cx="${x}" cy="${y}" r="5" fill="var(--magenta)" opacity="0.8"/>`;
+  }
+  // Axes
+  svg += `<line x1="${margin.left}" y1="${margin.top + pH}" x2="${margin.left + pW}" y2="${margin.top + pH}" stroke="var(--text2)"/>`;
+  svg += `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + pH}" stroke="var(--text2)"/>`;
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="10" fill="var(--text2)">Birth</text>`;
+  svg += `<text x="12" y="${margin.top + pH / 2}" text-anchor="middle" font-size="10" fill="var(--text2)" transform="rotate(-90 12 ${margin.top + pH / 2})">Death</text>`;
+  // Legend
+  svg += `<circle cx="${W - 80}" cy="20" r="4" fill="var(--cyan)"/><text x="${W - 72}" y="24" font-size="9" fill="var(--text2)">H0 (components)</text>`;
+  svg += `<circle cx="${W - 80}" cy="36" r="4" fill="var(--magenta)"/><text x="${W - 72}" y="40" font-size="9" fill="var(--text2)">H1 (loops)</text>`;
+  svg += `</svg>`;
+  document.getElementById('persistenceContainer').innerHTML = svg;
+  // Barcode
+  let bc = '<div style="font-size:.7rem;color:var(--text2);margin-bottom:6px">Persistence Barcode</div>';
+  for (const b of t.h0Bars.slice(0, 8)) {
+    const w = ((b.death - b.birth) / maxD * 100).toFixed(1);
+    bc += `<div class="barcode-row"><span style="width:60px;color:var(--cyan)">H0</span><div class="barcode-bar" style="width:${w}%;background:var(--cyan);opacity:0.6"></div></div>`;
+  }
+  for (const b of t.h1Bars.slice(0, 5)) {
+    const w = ((b.death - b.birth) / maxD * 100).toFixed(1);
+    bc += `<div class="barcode-row"><span style="width:60px;color:var(--magenta)">H1</span><div class="barcode-bar" style="width:${w}%;background:var(--magenta);opacity:0.6"></div></div>`;
+  }
+  document.getElementById('barcodeContainer').innerHTML = bc;
+}
+
+function renderSpectral() {
+  const W = 500, H = 300;
+  const eigs = results.spectral.eigenvalues.filter(e => isFinite(e) && Math.abs(e) < 1000).sort((a, b) => a - b);
+  if (eigs.length === 0) { document.getElementById('spectralContainer').innerHTML = '<p style="padding:20px;color:var(--text2)">Insufficient data</p>'; return; }
+  const maxE = Math.max(...eigs.map(Math.abs), 0.01);
+  const margin = { left: 50, right: 20, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Eigenvalue bars
+  const barW = Math.min(30, pW / eigs.length - 2);
+  for (let i = 0; i < eigs.length; i++) {
+    const x = margin.left + (i / eigs.length) * pW + barW / 2;
+    const h = (Math.abs(eigs[i]) / maxE) * pH;
+    const col = i === 0 ? 'var(--text2)' : i === 1 ? 'var(--green)' : 'var(--accent2)';
+    svg += `<rect x="${x}" y="${margin.top + pH - h}" width="${barW}" height="${h}" fill="${col}" opacity="0.7" rx="2">
+      <title>lambda_${i} = ${eigs[i].toFixed(4)}</title>
+    </rect>`;
+    svg += `<text x="${x + barW / 2}" y="${margin.top + pH + 14}" text-anchor="middle" font-size="8" fill="var(--text2)">${i}</text>`;
+  }
+  // Fiedler highlight
+  if (eigs.length > 1) {
+    const fx = margin.left + (1 / eigs.length) * pW + barW / 2;
+    svg += `<text x="${fx + barW / 2}" y="${margin.top + pH + 28}" text-anchor="middle" font-size="8" fill="var(--green)" font-weight="700">Fiedler</text>`;
+  }
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 2}" text-anchor="middle" font-size="10" fill="var(--text2)">Eigenvalue Index</text>`;
+  svg += `</svg>`;
+  document.getElementById('spectralContainer').innerHTML = svg;
+}
+
+function renderEntropy() {
+  const W = 500, H = 300;
+  const e = results.entropy;
+  const margin = { left: 50, right: 20, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Histogram of effect sizes
+  const maxP = Math.max(...e.probs, 0.01);
+  const barW = pW / e.nBins - 2;
+  for (let i = 0; i < e.nBins; i++) {
+    const x = margin.left + (i / e.nBins) * pW + 1;
+    const h = (e.probs[i] / maxP) * pH;
+    const intensity = e.probs[i] / maxP;
+    const r = Math.round(59 + intensity * 137);
+    const g = Math.round(130 + intensity * (-75));
+    const b2 = Math.round(246 + intensity * (-200));
+    svg += `<rect x="${x}" y="${margin.top + pH - h}" width="${barW}" height="${h}" fill="rgb(${r},${g},${b2})" opacity="0.8" rx="1"/>`;
+  }
+  // Entropy gauges
+  const gaugeY = 15;
+  svg += `<text x="${W - 10}" y="${gaugeY}" text-anchor="end" font-size="9" fill="var(--blue)">Shannon: ${e.shannon.toFixed(3)} (${(e.normalizedShannon * 100).toFixed(0)}%)</text>`;
+  svg += `<text x="${W - 10}" y="${gaugeY + 14}" text-anchor="end" font-size="9" fill="var(--cyan)">Renyi(2): ${e.renyi2.toFixed(3)}</text>`;
+  svg += `<text x="${W - 10}" y="${gaugeY + 28}" text-anchor="end" font-size="9" fill="var(--magenta)">Tsallis(1.5): ${e.tsallis.toFixed(3)}</text>`;
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="10" fill="var(--text2)">Effect Size Distribution</text>`;
+  svg += `</svg>`;
+  document.getElementById('entropyContainer').innerHTML = svg;
+}
+
+function renderAttractor() {
+  const W = 500, H = 350;
+  const a = results.attractor;
+  const margin = { left: 60, right: 30, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  const traj = a.trajectory;
+  if (traj.length < 2) return;
+  const eMin = Math.min(...traj.map(t => t.effect)), eMax = Math.max(...traj.map(t => t.effect));
+  const i2Max = Math.max(...traj.map(t => t.I2), 1);
+  const eRange = eMax - eMin || 0.1;
+  const xScale = v => margin.left + ((v - eMin) / eRange) * pW;
+  const yScale = v => margin.top + pH - (v / i2Max) * pH;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Trajectory path
+  let path = `M ${xScale(traj[0].effect)} ${yScale(traj[0].I2)}`;
+  for (let i = 1; i < traj.length; i++) {
+    path += ` L ${xScale(traj[i].effect)} ${yScale(traj[i].I2)}`;
+  }
+  svg += `<path d="${path}" fill="none" stroke="var(--accent2)" stroke-width="1.5" opacity="0.6"/>`;
+  // Points with temporal gradient
+  for (let i = 0; i < traj.length; i++) {
+    const t = i / (traj.length - 1);
+    const r = Math.round(6 + t * 230);
+    const g = Math.round(182 + t * (-110));
+    const b2 = Math.round(212 + t * (-60));
+    const px = xScale(traj[i].effect), py = yScale(traj[i].I2);
+    svg += `<circle cx="${px}" cy="${py}" r="${3 + t * 3}" fill="rgb(${r},${g},${b2})" opacity="0.85">
+      <title>${escapeHtml(traj[i].study)}\nk=${traj[i].k}, effect=${traj[i].effect.toFixed(4)}, I2=${traj[i].I2.toFixed(1)}%</title>
+    </circle>`;
+    // Arrow
+    if (i > 0) {
+      const px0 = xScale(traj[i - 1].effect), py0 = yScale(traj[i - 1].I2);
+      const dx = px - px0, dy = py - py0;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len > 5) {
+        const mx = (px + px0) / 2, my = (py + py0) / 2;
+        const angle = Math.atan2(dy, dx);
+        svg += `<polygon points="${mx + 4 * Math.cos(angle)},${my + 4 * Math.sin(angle)} ${mx + 3 * Math.cos(angle + 2.5)},${my + 3 * Math.sin(angle + 2.5)} ${mx + 3 * Math.cos(angle - 2.5)},${my + 3 * Math.sin(angle - 2.5)}" fill="var(--accent2)" opacity="0.4"/>`;
+      }
+    }
+  }
+  // Axes
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="10" fill="var(--text2)">Cumulative Effect</text>`;
+  svg += `<text x="14" y="${margin.top + pH / 2}" text-anchor="middle" font-size="10" fill="var(--text2)" transform="rotate(-90 14 ${margin.top + pH / 2})">Cumulative I-squared (%)</text>`;
+  // Lyapunov
+  const lColor = a.isStable ? 'var(--green)' : 'var(--red)';
+  svg += `<text x="${W - 10}" y="16" text-anchor="end" font-size="9" fill="${lColor}" font-weight="700">lambda = ${a.lyapunov.toFixed(4)} (${a.isStable ? 'Converging' : 'Diverging'})</text>`;
+  svg += `</svg>`;
+  document.getElementById('attractorContainer').innerHTML = svg;
+}
+
+function renderFractal() {
+  const W = 500, H = 300;
+  const f = results.fractal;
+  const w = results.wasserstein;
+  const margin = { left: 50, right: 20, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Log-log plot for fractal dimension
+  if (f.logN.length > 1) {
+    const xMin = Math.min(...f.logEps), xMax = Math.max(...f.logEps);
+    const yMin = Math.min(...f.logN), yMax = Math.max(...f.logN);
+    const xRange = xMax - xMin || 1, yRange = yMax - yMin || 1;
+    const xS = v => margin.left + ((v - xMin) / xRange) * pW * 0.45;
+    const yS = v => margin.top + pH - ((v - yMin) / yRange) * pH;
+    // Points
+    for (let i = 0; i < f.logN.length; i++) {
+      svg += `<circle cx="${xS(f.logEps[i])}" cy="${yS(f.logN[i])}" r="4" fill="var(--magenta)" opacity="0.8"/>`;
+    }
+    // Regression line
+    if (f.logN.length >= 2) {
+      const x1 = xS(xMin), y1 = yS(yMin);
+      const x2 = xS(xMax), y2 = yS(yMin + f.dimension * (xMax - xMin));
+      svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--magenta)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+    }
+    svg += `<text x="${margin.left + pW * 0.22}" y="${H - 5}" text-anchor="middle" font-size="9" fill="var(--text2)">log(1/eps) vs log(N)</text>`;
+  }
+  // Wasserstein comparison (right half)
+  const bx = margin.left + pW * 0.55;
+  const barH = 30;
+  // DL bar
+  const dlX = bx + 100;
+  svg += `<text x="${bx}" y="${margin.top + 30}" font-size="10" fill="var(--text2)">DL Estimate:</text>`;
+  svg += `<text x="${bx + 120}" y="${margin.top + 30}" font-size="11" fill="var(--cyan)" font-family="var(--mono)" font-weight="700">${w.dlMean.toFixed(4)}</text>`;
+  svg += `<text x="${bx}" y="${margin.top + 56}" font-size="10" fill="var(--text2)">W2 Barycenter:</text>`;
+  svg += `<text x="${bx + 120}" y="${margin.top + 56}" font-size="11" fill="var(--gold)" font-family="var(--mono)" font-weight="700">${w.mean.toFixed(4)}</text>`;
+  svg += `<text x="${bx}" y="${margin.top + 82}" font-size="10" fill="var(--text2)">Discrepancy:</text>`;
+  svg += `<text x="${bx + 120}" y="${margin.top + 82}" font-size="11" fill="var(--magenta)" font-family="var(--mono)" font-weight="700">${w.discrepancy.toFixed(4)}</text>`;
+  svg += `<text x="${bx}" y="${margin.top + 108}" font-size="10" fill="var(--text2)">Total W2 Dist:</text>`;
+  svg += `<text x="${bx + 120}" y="${margin.top + 108}" font-size="11" fill="var(--accent2)" font-family="var(--mono)" font-weight="700">${w.totalW2.toFixed(4)}</text>`;
+  // Fractal dimension gauge
+  svg += `<text x="${bx}" y="${margin.top + 150}" font-size="10" fill="var(--text2)">Fractal D:</text>`;
+  svg += `<rect x="${bx + 80}" y="${margin.top + 138}" width="${pW * 0.35}" height="14" fill="var(--bg3)" rx="7"/>`;
+  svg += `<rect x="${bx + 80}" y="${margin.top + 138}" width="${f.dimension * pW * 0.35}" height="14" fill="var(--magenta)" rx="7" opacity="0.7"/>`;
+  svg += `<text x="${bx + 80 + pW * 0.35 + 8}" y="${margin.top + 150}" font-size="10" fill="var(--magenta)" font-weight="700">${f.dimension.toFixed(3)}</text>`;
+  svg += `</svg>`;
+  document.getElementById('fractalContainer').innerHTML = svg;
+}
+
+function renderInterpretation() {
+  const r = results;
+  const p = r.poincare, t = r.topo, w = r.wasserstein, s = r.spectral, e = r.entropy, a = r.attractor, f = r.fractal;
+  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+  // Hyperbolic
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:var(--magenta);margin-bottom:6px">Hyperbolic Geometry</div>
+    <div style="font-size:.82rem">Dispersion = ${p.dispersion.toFixed(3)}. ${p.dispersion > 1.5 ? 'Studies are widely scattered in hyperbolic space — the evidence base is geometrically heterogeneous, suggesting fundamentally different underlying effects.' : p.dispersion > 0.8 ? 'Moderate dispersion — some geometric clustering but notable spread.' : 'Low dispersion — studies cluster tightly around the Einstein midpoint, suggesting geometric consensus.'}</div>
+  </div>`;
+  // Topology
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:var(--cyan);margin-bottom:6px">Topological Features</div>
+    <div style="font-size:.82rem">${t.betti1} one-cycles detected. ${t.betti1 > 2 ? 'Multiple contradictory evidence loops — studies that are locally consistent but form global contradictions. This is a topological signature of confounding or design-dependent bias.' : t.betti1 > 0 ? 'Evidence loops present — some circular contradiction patterns exist in the data.' : 'No 1-cycles — the evidence forms a tree-like structure without contradictory loops.'} Persistent entropy = ${t.persistEntropy.toFixed(3)}.</div>
+  </div>`;
+  // Spectral
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:var(--green);margin-bottom:6px">Spectral Analysis</div>
+    <div style="font-size:.82rem">Fiedler value = ${s.fiedler.toFixed(4)}. ${s.fiedler < 0.1 ? 'Near-zero algebraic connectivity — the evidence graph is almost disconnected, indicating distinct clusters of studies that barely communicate.' : s.fiedler > 1 ? 'High connectivity — studies form a well-connected evidence network.' : 'Moderate connectivity — the evidence graph is connected but has weak links.'}</div>
+  </div>`;
+  // Dynamics
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:${a.isStable ? 'var(--green)' : 'var(--red)'};margin-bottom:6px">Dynamical Stability</div>
+    <div style="font-size:.82rem">Lyapunov exponent = ${a.lyapunov.toFixed(4)}. ${a.isStable ? 'Negative exponent — the evidence trajectory converges over time. Sequential accumulation of studies drives toward a stable conclusion.' : 'Positive exponent — chaotic dynamics. New studies amplify rather than resolve disagreement. The evidence base is on a divergent trajectory.'}</div>
+  </div>`;
+  // Entropy
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:var(--blue);margin-bottom:6px">Information Content</div>
+    <div style="font-size:.82rem">Normalized Shannon entropy = ${(e.normalizedShannon * 100).toFixed(0)}%. ${e.normalizedShannon > 0.8 ? 'Near-maximum entropy — effects are spread almost uniformly, meaning the evidence base carries maximum disagreement.' : e.normalizedShannon > 0.5 ? 'Moderate entropy — some concentration but substantial information spread.' : 'Low entropy — effects concentrate in few bins, suggesting strong consensus.'}</div>
+  </div>`;
+  // Fractal + Wasserstein
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:var(--gold);margin-bottom:6px">Geometric Pooling & Fractal Structure</div>
+    <div style="font-size:.82rem">Wasserstein barycenter = ${w.mean.toFixed(4)} vs DL = ${w.dlMean.toFixed(4)} (discrepancy ${w.discrepancy.toFixed(4)}). ${w.discrepancy > 0.05 ? 'Substantial divergence between optimal-transport and inverse-variance pooling — the choice of aggregation geometry matters for this evidence base.' : 'Small discrepancy — both geometries agree.'} Fractal D = ${f.dimension.toFixed(3)}${f.dimension > 0.7 ? ' (complex, space-filling disagreement)' : f.dimension > 0.3 ? ' (moderate complexity)' : ' (simple, point-like consensus)'}.</div>
+  </div>`;
+  html += '</div>';
+  document.getElementById('interpretContent').innerHTML = html;
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportResults() {
+  if (!results) return;
+  const r = results;
+  const data = {
+    tool: 'HyperMeta v1.0',
+    date: new Date().toISOString(),
+    studies: studies.length,
+    poincare: { dispersion: r.poincare.dispersion, barycenter: r.poincare.barycenter },
+    topology: { betti0: r.topo.betti0, betti1: r.topo.betti1, persistEntropy: r.topo.persistEntropy },
+    wasserstein: { mean: r.wasserstein.mean, dlMean: r.wasserstein.dlMean, discrepancy: r.wasserstein.discrepancy },
+    spectral: { fiedler: r.spectral.fiedler, spectralGap: r.spectral.spectralGap },
+    entropy: { shannon: r.entropy.shannon, renyi2: r.entropy.renyi2, tsallis: r.entropy.tsallis, normalized: r.entropy.normalizedShannon },
+    dynamics: { lyapunov: r.attractor.lyapunov, isStable: r.attractor.isStable },
+    fractal: { dimension: r.fractal.dimension }
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'hypermeta-results.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+loadDataset('vitamind');
+setTimeout(() => { if (studies.length >= 3) runHyperMeta(); }, 100);
+</script>
+</body>
+</html>
