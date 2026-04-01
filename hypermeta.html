@@ -459,7 +459,7 @@ function spectralAnalysis(studies) {
     sim[i] = [];
     for (let j = 0; j < k; j++) {
       if (i === j) sim[i][j] = 0;
-      else sim[i][j] = Math.exp(-(studies[i].yi - studies[j].yi) ** 2 / (2 * sigma * sigma));
+      else sim[i][j] = Math.exp(-((studies[i].yi - studies[j].yi) ** 2) / (2 * sigma * sigma));
     }
   }
   // Degree matrix & Laplacian
