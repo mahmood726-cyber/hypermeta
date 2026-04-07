@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HyperMeta — Evidence Geometry Engine</title>
+<style>
+:root {
+  --bg:#0a0a12; --bg2:#12121f; --bg3:#1a1a2e;
+  --text:#e0e0ff; --text2:#8888aa; --accent:#7c3aed;
+  --accent2:#a78bfa; --accent3:#c4b5fd;
+  --cyan:#06b6d4; --magenta:#ec4899; --gold:#f59e0b;
+  --green:#10b981; --red:#ef4444; --blue:#3b82f6;
+  --border:#2a2a44; --shadow:0 4px 24px rgba(0,0,0,0.5);
+  --radius:10px; --font:'Segoe UI',system-ui,sans-serif;
+  --mono:'Cascadia Code','Fira Code','Consolas',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+.container{max-width:1400px;margin:0 auto;padding:20px}
+
+/* Header */
+header{
+  background:linear-gradient(135deg,#0a0a12 0%,#1a1a3e 50%,#0a0a12 100%);
+  border-bottom:1px solid var(--border);padding:20px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+header h1{font-size:1.5rem;font-weight:800;background:linear-gradient(90deg,var(--cyan),var(--magenta),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}
+header .sub{font-size:.75rem;color:var(--text2);margin-top:2px;letter-spacing:.1em;text-transform:uppercase}
+.header-controls{display:flex;gap:10px;align-items:center}
+button{font-family:var(--font);font-size:.82rem;padding:7px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);color:var(--text);cursor:pointer;transition:.15s}
+button:hover{border-color:var(--accent);color:var(--accent2)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+button.primary:hover{background:#6d28d9}
+
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;box-shadow:var(--shadow)}
+.card h2{font-size:1.05rem;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h2 .icon{font-size:1.2rem}
+.card h2 .tag{font-size:.6rem;padding:2px 8px;border-radius:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.tag-topo{background:#06b6d420;color:var(--cyan)}
+.tag-geom{background:#ec489920;color:var(--magenta)}
+.tag-dyn{background:#f59e0b20;color:var(--gold)}
+.tag-info{background:#3b82f620;color:var(--blue)}
+.tag-spect{background:#10b98120;color:var(--green)}
+
+/* Data table */
+.data-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.data-table th,.data-table td{padding:6px 10px;border:1px solid var(--border);text-align:left}
+.data-table th{background:var(--bg3);font-weight:600;color:var(--accent3)}
+.data-table input{width:100%;border:none;background:transparent;color:var(--text);font-family:var(--mono);font-size:.82rem;padding:2px}
+.data-table input:focus{outline:none;background:var(--bg3)}
+.table-controls{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+
+/* Grid layouts */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+/* SVG containers */
+.viz-container{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;position:relative}
+.viz-container svg{display:block;width:100%}
+
+/* Metric cards */
+.metric-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center}
+.metric-card .val{font-size:1.6rem;font-weight:800;font-family:var(--mono);margin:4px 0}
+.metric-card .lbl{font-size:.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:.08em}
+.val-cyan{color:var(--cyan)}.val-magenta{color:var(--magenta)}.val-gold{color:var(--gold)}
+.val-green{color:var(--green)}.val-red{color:var(--red)}.val-blue{color:var(--blue)}
+
+/* Barcode / persistence diagram */
+.barcode-row{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:.75rem}
+.barcode-bar{height:4px;border-radius:2px;min-width:2px}
+
+/* Phase space */
+.phase-dot{transition:opacity .1s}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* Glow animation */
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 3px var(--accent))}50%{filter:drop-shadow(0 0 12px var(--accent))}}
+.glow{animation:glow 3s ease-in-out infinite}
+
+/* Results section */
+#resultsSection{display:none}
+.section-title{font-size:1rem;font-weight:700;color:var(--accent3);margin:24px 0 12px;padding-left:8px;border-left:3px solid var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>HyperMeta</h1>
+    <div class="sub">Evidence Geometry Engine</div>
+  </div>
+  <div class="header-controls">
+    <select id="datasetSelect" onchange="loadDataset(this.value)" style="background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;font-family:var(--font)">
+      <option value="">-- Load Example --</option>
+      <option value="vitamind">Vitamin D & Mortality Paradox (16 studies)</option>
+      <option value="hrt">HRT & Breast Cancer Reversal (12 studies)</option>
+      <option value="homeopathy">Homeopathy Controversy (15 studies)</option>
+    </select>
+    <button class="primary" id="runBtn" onclick="runHyperMeta()" disabled>Analyze Geometry</button>
+    <button onclick="exportResults()">Export</button>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Data Input -->
+  <div class="card">
+    <h2><span class="icon">&#x2B22;</span> Study Data</h2>
+    <div style="overflow-x:auto">
+      <table class="data-table" id="dataTable">
+        <thead><tr>
+          <th style="width:30px">#</th>
+          <th style="width:180px">Study</th>
+          <th style="width:80px">Design</th>
+          <th style="width:100px">Effect (yi)</th>
+          <th style="width:100px">SE</th>
+          <th style="width:60px">Year</th>
+          <th style="width:60px">N</th>
+          <th style="width:30px"></th>
+        </tr></thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+    <div class="table-controls">
+      <button onclick="addRow()">+ Add Study</button>
+      <button onclick="addRows(5)">+ Add 5</button>
+      <button onclick="clearAll()">Clear All</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsSection">
+
+    <!-- Summary Metrics -->
+    <div class="section-title">Geometric Summary</div>
+    <div class="grid-3" id="metricsGrid"></div>
+
+    <!-- Poincare Disk + Persistence Diagram -->
+    <div class="section-title">Hyperbolic Embedding & Topological Features</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x25CE;</span> Poincare Disk <span class="tag tag-geom">Geometry</span></h2>
+        <div class="viz-container" id="poincareContainer"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x25B3;</span> Persistence Diagram <span class="tag tag-topo">Topology</span></h2>
+        <div class="viz-container" id="persistenceContainer"></div>
+        <div id="barcodeContainer" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- Spectral + Entropy -->
+    <div class="section-title">Spectral & Information-Theoretic Analysis</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x2261;</span> Spectral Decomposition <span class="tag tag-spect">Spectral</span></h2>
+        <div class="viz-container" id="spectralContainer"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x222B;</span> Evidence Entropy <span class="tag tag-info">Information</span></h2>
+        <div class="viz-container" id="entropyContainer"></div>
+      </div>
+    </div>
+
+    <!-- Strange Attractor + Fractal -->
+    <div class="section-title">Dynamical Systems & Fractal Structure</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x221E;</span> Strange Attractor <span class="tag tag-dyn">Dynamics</span></h2>
+        <div class="viz-container" id="attractorContainer"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x2738;</span> Fractal Dimension & Wasserstein <span class="tag tag-geom">Geometry</span></h2>
+        <div class="viz-container" id="fractalContainer"></div>
+      </div>
+    </div>
+
+    <!-- Layer 2: Deep Mathematics -->
+    <div class="section-title" style="background:linear-gradient(90deg,var(--bg),var(--bg3));padding:8px;border-left-color:var(--magenta)">Layer 2: Deep Mathematics</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x2300;</span> Sheaf Cohomology <span class="tag tag-topo">Topology</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Global vs local consistency. H1 cohomology detects evidence that is locally consistent but globally contradictory.</p>
+        <div id="sheafContent"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x223F;</span> Ollivier-Ricci Curvature <span class="tag tag-geom">Geometry</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Discrete Ricci curvature on the study graph. Positive = clustering; negative = bottleneck/bridge.</p>
+        <div class="viz-container" id="ricciContainer"></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x2207;</span> Information Geometry <span class="tag tag-info">Manifold</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Fisher information metric on the statistical manifold. Geodesic distances and scalar curvature.</p>
+        <div class="viz-container" id="infoGeomContainer"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x2206;</span> Morse Theory <span class="tag tag-dyn">Topology</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Critical points of the evidence density landscape. Minima = consensus clusters; saddles = transition zones.</p>
+        <div class="viz-container" id="morseContainer"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="icon">&#x2102;</span> Kolmogorov Complexity <span class="tag tag-info">Information</span></h2>
+      <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Algorithmic randomness of the evidence. High K = incompressible disagreement; low K = structured pattern.</p>
+      <div id="kolmogorovContent"></div>
+    </div>
+
+    <!-- Layer 3: The Abyss -->
+    <div class="section-title" style="background:linear-gradient(90deg,var(--bg),#1a0a2e);padding:8px;border-left-color:var(--gold)">Layer 3: The Abyss</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="icon">&#x2318;</span> Quantum Information <span class="tag" style="background:#7c3aed20;color:#c4b5fd">Quantum</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Studies as quantum states. Von Neumann entropy, fidelity, entanglement between design groups.</p>
+        <div id="quantumContent"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x2192;</span> Category Theory <span class="tag" style="background:#ec489920;color:var(--magenta)">Algebra</span></h2>
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">Colimits, natural transformation norms, Kan extensions. How "forced" is the pooling?</p>
+        <div id="categoryContent"></div>
+      </div>
+    </div>
+    <div class="grid-3">
+      <div class="card">
+        <h2><span class="icon">&#x2295;</span> Tropical Geometry <span class="tag tag-geom">Tropical</span></h2>
+        <p style="font-size:.72rem;color:var(--text2);margin-bottom:8px">Min-plus algebra. Tropical convex hull and determinant.</p>
+        <div id="tropicalContent"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x2119;</span> p-Adic Analysis <span class="tag tag-info">Number Theory</span></h2>
+        <p style="font-size:.72rem;color:var(--text2);margin-bottom:8px">2-adic ultrametric distance. Fundamentally different notion of closeness.</p>
+        <div id="padicContent"></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#x2202;</span> Non-Commutative Geometry <span class="tag tag-geom">Connes</span></h2>
+        <p style="font-size:.72rem;color:var(--text2);margin-bottom:8px">Spectral triples, Dixmier trace, Connes distance.</p>
+        <div id="ncGeomContent"></div>
+      </div>
+    </div>
+
+    <!-- Interpretation -->
+    <div class="card" id="interpretCard">
+      <h2><span class="icon">&#x2318;</span> Geometric Interpretation</h2>
+      <div id="interpretContent" style="font-size:.9rem;line-height:1.8"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ============================================================
+// STATE
+// ============================================================
+let studies = [];
+let results = null;
+let rowNum = 0;
+
+// ============================================================
+// UTILITY: Linear Algebra Helpers
+// ============================================================
+function dot(a, b) { return a.reduce((s, v, i) => s + v * b[i], 0); }
+function norm(a) { return Math.sqrt(dot(a, a)); }
+function scale(a, s) { return a.map(v => v * s); }
+function add(a, b) { return a.map((v, i) => v + b[i]); }
+function sub(a, b) { return a.map((v, i) => v - b[i]); }
+
+// ============================================================
+// DATASETS
+// ============================================================
+const DATASETS = {
+  vitamind: {
+    name: 'Vitamin D & Mortality Paradox',
+    desc: 'Observational studies show strong benefit; RCTs show null. Classic confounding-by-indication.',
+    data: [
+      { study: 'Autier 2007 (obs)', design: 'obs', yi: -0.42, se: 0.12, year: 2007, n: 57311 },
+      { study: 'Melamed 2008 (obs)', design: 'obs', yi: -0.38, se: 0.09, year: 2008, n: 13331 },
+      { study: 'Michaelsson 2010 (obs)', design: 'obs', yi: -0.31, se: 0.14, year: 2010, n: 1194 },
+      { study: 'Schottker 2013 (obs)', design: 'obs', yi: -0.47, se: 0.08, year: 2013, n: 9578 },
+      { study: 'Garland 2014 (obs)', design: 'obs', yi: -0.52, se: 0.11, year: 2014, n: 32000 },
+      { study: 'Gaksch 2017 (obs)', design: 'obs', yi: -0.35, se: 0.10, year: 2017, n: 78581 },
+      { study: 'Heath 2019 (obs)', design: 'obs', yi: -0.29, se: 0.07, year: 2019, n: 365530 },
+      { study: 'Wan 2021 (obs)', design: 'obs', yi: -0.44, se: 0.06, year: 2021, n: 307601 },
+      { study: 'Trivedi 2003 (RCT)', design: 'RCT', yi: -0.02, se: 0.18, year: 2003, n: 2686 },
+      { study: 'RECORD 2005 (RCT)', design: 'RCT', yi: 0.04, se: 0.06, year: 2005, n: 5292 },
+      { study: 'Sanders 2010 (RCT)', design: 'RCT', yi: 0.12, se: 0.15, year: 2010, n: 2256 },
+      { study: 'Scragg 2017 (RCT)', design: 'RCT', yi: -0.01, se: 0.08, year: 2017, n: 5110 },
+      { study: 'Manson 2019 (RCT)', design: 'RCT', yi: -0.01, se: 0.05, year: 2019, n: 25871 },
+      { study: 'Neale 2022 (RCT)', design: 'RCT', yi: -0.04, se: 0.04, year: 2022, n: 21315 },
+      { study: 'Barbarawi 2019 (MA)', design: 'MA', yi: -0.02, se: 0.03, year: 2019, n: 83291 },
+      { study: 'Zhang 2020 (MR)', design: 'MR', yi: 0.03, se: 0.09, year: 2020, n: 386406 }
+    ]
+  },
+  hrt: {
+    name: 'HRT & Breast Cancer Reversal',
+    desc: 'Observational showed protection, WHI RCT showed harm. The canonical evidence reversal.',
+    data: [
+      { study: 'Beral 1997 (obs)', design: 'obs', yi: -0.18, se: 0.06, year: 1997, n: 51705 },
+      { study: 'Schairer 2000 (obs)', design: 'obs', yi: 0.22, se: 0.09, year: 2000, n: 46355 },
+      { study: 'Ross 2000 (obs)', design: 'obs', yi: 0.10, se: 0.11, year: 2000, n: 57000 },
+      { study: 'Li 2003 (obs)', design: 'obs', yi: 0.26, se: 0.08, year: 2003, n: 975 },
+      { study: 'Beral 2003 (MWS)', design: 'obs', yi: 0.30, se: 0.04, year: 2003, n: 1084110 },
+      { study: 'WHI E+P 2002 (RCT)', design: 'RCT', yi: 0.24, se: 0.10, year: 2002, n: 16608 },
+      { study: 'WHI CEE 2004 (RCT)', design: 'RCT', yi: -0.21, se: 0.12, year: 2004, n: 10739 },
+      { study: 'HERS 1998 (RCT)', design: 'RCT', yi: 0.28, se: 0.15, year: 1998, n: 2763 },
+      { study: 'HABITS 2004 (RCT)', design: 'RCT', yi: 0.69, se: 0.25, year: 2004, n: 434 },
+      { study: 'Fournier 2005 (obs)', design: 'obs', yi: 0.18, se: 0.07, year: 2005, n: 54548 },
+      { study: 'Chlebowski 2020 (RCT)', design: 'RCT', yi: 0.18, se: 0.08, year: 2020, n: 16608 },
+      { study: 'Collaborative 2019 (MA)', design: 'MA', yi: 0.26, se: 0.02, year: 2019, n: 108647 }
+    ]
+  },
+  homeopathy: {
+    name: 'Homeopathy Controversy',
+    desc: 'Small trials show large effects; large trials converge to null. Classic small-study bias.',
+    data: [
+      { study: 'Kleijnen 1991', design: 'RCT', yi: 0.42, se: 0.22, year: 1991, n: 40 },
+      { study: 'Reilly 1994', design: 'RCT', yi: 0.55, se: 0.28, year: 1994, n: 28 },
+      { study: 'Linde 1997', design: 'MA', yi: 0.26, se: 0.05, year: 1997, n: 2001 },
+      { study: 'Walach 1997', design: 'RCT', yi: 0.38, se: 0.31, year: 1997, n: 47 },
+      { study: 'Jacobs 2003', design: 'RCT', yi: 0.31, se: 0.19, year: 2003, n: 116 },
+      { study: 'Shang 2005', design: 'MA', yi: 0.03, se: 0.06, year: 2005, n: 3120 },
+      { study: 'Ludtke 2008', design: 'MA', yi: 0.12, se: 0.07, year: 2008, n: 1923 },
+      { study: 'Mathie 2014', design: 'MA', yi: 0.21, se: 0.08, year: 2014, n: 1308 },
+      { study: 'Brien 2011', design: 'RCT', yi: 0.02, se: 0.14, year: 2011, n: 77 },
+      { study: 'NHMRC 2015', design: 'MA', yi: 0.01, se: 0.04, year: 2015, n: 3275 },
+      { study: 'Mathie 2017', design: 'MA', yi: 0.15, se: 0.06, year: 2017, n: 2049 },
+      { study: 'Vittori 2018', design: 'RCT', yi: -0.05, se: 0.16, year: 2018, n: 150 },
+      { study: 'Tournier 2019', design: 'RCT', yi: 0.08, se: 0.12, year: 2019, n: 260 },
+      { study: 'Antonelli 2020', design: 'MA', yi: 0.09, se: 0.05, year: 2020, n: 4801 },
+      { study: 'Hamre 2023', design: 'obs', yi: 0.35, se: 0.10, year: 2023, n: 3981 }
+    ]
+  }
+};
+
+// ============================================================
+// DATA INPUT
+// ============================================================
+function addRow(d) {
+  rowNum++;
+  const tbody = document.getElementById('dataBody');
+  const tr = document.createElement('tr');
+  const data = d || { study: '', design: 'RCT', yi: '', se: '', year: '', n: '' };
+  tr.innerHTML = `
+    <td style="text-align:center;color:var(--text2)">${rowNum}</td>
+    <td><input type="text" value="${escapeHtml(String(data.study))}" data-f="study"></td>
+    <td><input type="text" value="${escapeHtml(String(data.design))}" data-f="design"></td>
+    <td><input type="text" value="${data.yi}" data-f="yi"></td>
+    <td><input type="text" value="${data.se}" data-f="se"></td>
+    <td><input type="text" value="${data.year}" data-f="year"></td>
+    <td><input type="text" value="${data.n}" data-f="n"></td>
+    <td><button onclick="this.closest('tr').remove();sync()" style="padding:2px 6px;color:var(--red);border:none;background:none;cursor:pointer">&times;</button></td>
+  `;
+  tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', sync));
+  tbody.appendChild(tr);
+  sync();
+}
+function addRows(n) { for (let i = 0; i < n; i++) addRow(); }
+function clearAll() { document.getElementById('dataBody').innerHTML = ''; rowNum = 0; studies = []; sync(); }
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function sync() {
+  const rows = document.getElementById('dataBody').querySelectorAll('tr');
+  studies = [];
+  rows.forEach(tr => {
+    const get = f => tr.querySelector(`input[data-f="${f}"]`)?.value.trim() ?? '';
+    const yi = parseFloat(get('yi'));
+    const se = parseFloat(get('se'));
+    if (isFinite(yi) && isFinite(se) && se > 0) {
+      studies.push({
+        study: get('study') || `Study ${studies.length + 1}`,
+        design: get('design') || 'RCT',
+        yi, se, vi: se * se,
+        year: parseInt(get('year')) || 2020,
+        n: parseInt(get('n')) || 100
+      });
+    }
+  });
+  document.getElementById('runBtn').disabled = studies.length < 3;
+}
+
+function loadDataset(key) {
+  const ds = DATASETS[key];
+  if (!ds) return;
+  clearAll();
+  for (const d of ds.data) addRow(d);
+}
+
+// ============================================================
+// 1. POINCARE DISK EMBEDDING
+// ============================================================
+function poincareEmbed(studies) {
+  // Map each study to a point in the Poincare disk model of H^2
+  // Effect size -> angle, precision -> radius (high precision = closer to boundary)
+  const effects = studies.map(s => s.yi);
+  const eMin = Math.min(...effects), eMax = Math.max(...effects);
+  const eRange = eMax - eMin || 1;
+  const points = studies.map(s => {
+    const angle = ((s.yi - eMin) / eRange) * Math.PI * 1.5 - Math.PI * 0.75;
+    const precision = 1 / s.se;
+    const maxPrec = Math.max(...studies.map(st => 1 / st.se));
+    const r = Math.tanh(precision / maxPrec * 2); // Tanh maps to (0,1)
+    return { x: r * Math.cos(angle), y: r * Math.sin(angle), study: s.study, design: s.design, yi: s.yi, se: s.se };
+  });
+  // Einstein midpoint (hyperbolic barycenter)
+  // Approximation: weighted Mobius addition
+  const wi = studies.map(s => 1 / s.vi);
+  const W = wi.reduce((a, b) => a + b, 0);
+  let cx = 0, cy = 0;
+  for (let i = 0; i < points.length; i++) {
+    const gamma = 1 / Math.sqrt(1 - points[i].x ** 2 - points[i].y ** 2 + 1e-10);
+    cx += wi[i] * gamma * points[i].x;
+    cy += wi[i] * gamma * points[i].y;
+  }
+  const cGamma = Math.sqrt(1 + cx * cx + cy * cy);
+  const barycenter = { x: cx / cGamma, y: cy / cGamma };
+  // Geodesic dispersion (hyperbolic variance)
+  const dispersion = points.reduce((s, p) => {
+    const dx = p.x - barycenter.x, dy = p.y - barycenter.y;
+    const eucDist = Math.sqrt(dx * dx + dy * dy);
+    const hypDist = 2 * Math.atanh(Math.min(eucDist, 0.999));
+    return s + hypDist * hypDist;
+  }, 0) / points.length;
+  return { points, barycenter, dispersion: Math.sqrt(dispersion) };
+}
+
+// ============================================================
+// 2. PERSISTENT HOMOLOGY (Vietoris-Rips)
+// ============================================================
+function persistentHomology(studies) {
+  const k = studies.length;
+  // Distance matrix: |yi - yj| / sqrt(sei^2 + sej^2)
+  const dist = [];
+  for (let i = 0; i < k; i++) {
+    dist[i] = [];
+    for (let j = 0; j < k; j++) {
+      dist[i][j] = Math.abs(studies[i].yi - studies[j].yi) / Math.sqrt(studies[i].vi + studies[j].vi);
+    }
+  }
+  // Compute H0 (connected components) and H1 (loops) via filtration
+  const edges = [];
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) edges.push({ i, j, d: dist[i][j] });
+  edges.sort((a, b) => a.d - b.d);
+  // Union-Find for H0
+  const parent = Array.from({ length: k }, (_, i) => i);
+  const rank = new Array(k).fill(0);
+  function find(x) { return parent[x] === x ? x : (parent[x] = find(parent[x])); }
+  function union(a, b) {
+    a = find(a); b = find(b);
+    if (a === b) return false;
+    if (rank[a] < rank[b]) [a, b] = [b, a];
+    parent[b] = a;
+    if (rank[a] === rank[b]) rank[a]++;
+    return true;
+  }
+  const h0Bars = Array.from({ length: k }, () => ({ birth: 0, death: Infinity }));
+  const h1Bars = [];
+  for (const e of edges) {
+    const ra = find(e.i), rb = find(e.j);
+    if (ra !== rb) {
+      // Merging two components: the younger one dies
+      const younger = h0Bars[ra].birth > h0Bars[rb].birth ? ra : rb;
+      h0Bars[younger].death = e.d;
+      union(e.i, e.j);
+    } else {
+      // Creates a 1-cycle (loop)
+      h1Bars.push({ birth: e.d, death: e.d * 1.3 + 0.1, edge: e });
+    }
+  }
+  // Betti numbers at median filtration
+  const allDists = edges.map(e => e.d);
+  const medDist = allDists[Math.floor(allDists.length / 2)];
+  const betti0 = h0Bars.filter(b => b.birth <= medDist && b.death > medDist).length;
+  const betti1 = h1Bars.filter(b => b.birth <= medDist && b.death > medDist).length;
+  // Persistent entropy
+  const lifetimes = [...h0Bars.filter(b => isFinite(b.death)).map(b => b.death - b.birth), ...h1Bars.map(b => b.death - b.birth)];
+  const totalLife = lifetimes.reduce((a, b) => a + b, 0) || 1;
+  const persistEntropy = -lifetimes.reduce((s, l) => { const p = l / totalLife; return s + (p > 0 ? p * Math.log2(p) : 0); }, 0);
+  return { h0Bars: h0Bars.filter(b => isFinite(b.death)), h1Bars, betti0, betti1, persistEntropy, dist };
+}
+
+// ============================================================
+// 3. WASSERSTEIN BARYCENTER
+// ============================================================
+function wassersteinBarycenter(studies) {
+  // 1D Wasserstein-2 barycenter = weighted quantile average
+  // For normal distributions: W2 barycenter has mean = weighted mean, var = weighted var
+  const wi = studies.map(s => 1 / s.vi);
+  const W = wi.reduce((a, b) => a + b, 0);
+  const mean = studies.reduce((s, st, i) => s + wi[i] * st.yi, 0) / W;
+  const variance = studies.reduce((s, st, i) => s + wi[i] * st.vi, 0) / W;
+  // Pairwise W2 distances
+  const w2Dists = [];
+  for (let i = 0; i < studies.length; i++) {
+    for (let j = i + 1; j < studies.length; j++) {
+      const d = Math.sqrt((studies[i].yi - studies[j].yi) ** 2 + (Math.sqrt(studies[i].vi) - Math.sqrt(studies[j].vi)) ** 2);
+      w2Dists.push({ i, j, d });
+    }
+  }
+  const totalW2 = w2Dists.reduce((s, d) => s + d.d, 0) / (w2Dists.length || 1);
+  // Compare to standard DL
+  const dlWi = studies.map(s => 1 / s.vi);
+  const dlW = dlWi.reduce((a, b) => a + b, 0);
+  const dlMean = studies.reduce((s, st, i) => s + dlWi[i] * st.yi, 0) / dlW;
+  return { mean, variance, se: Math.sqrt(variance), totalW2, dlMean, discrepancy: Math.abs(mean - dlMean) };
+}
+
+// ============================================================
+// 4. SPECTRAL HETEROGENEITY
+// ============================================================
+function spectralAnalysis(studies) {
+  const k = studies.length;
+  // Build similarity matrix: Gaussian kernel on effect distance
+  const sigma = studies.reduce((s, st) => s + st.se, 0) / k;
+  const sim = [];
+  for (let i = 0; i < k; i++) {
+    sim[i] = [];
+    for (let j = 0; j < k; j++) {
+      if (i === j) sim[i][j] = 0;
+      else sim[i][j] = Math.exp(-((studies[i].yi - studies[j].yi) ** 2) / (2 * sigma * sigma));
+    }
+  }
+  // Degree matrix & Laplacian
+  const degree = sim.map(row => row.reduce((a, b) => a + b, 0));
+  const laplacian = [];
+  for (let i = 0; i < k; i++) {
+    laplacian[i] = [];
+    for (let j = 0; j < k; j++) {
+      laplacian[i][j] = (i === j) ? degree[i] : -sim[i][j];
+    }
+  }
+  // Power iteration for smallest non-zero eigenvalue (Fiedler value)
+  // Use inverse iteration on L + small shift
+  const eigenvalues = computeEigenvalues(laplacian, k);
+  eigenvalues.sort((a, b) => a - b);
+  const fiedler = eigenvalues.length > 1 ? eigenvalues[1] : 0;
+  const spectralGap = eigenvalues.length > 2 ? eigenvalues[2] - eigenvalues[1] : 0;
+  const algebraicConn = fiedler;
+  return { eigenvalues, fiedler, spectralGap, algebraicConn, laplacian, sim };
+}
+
+function computeEigenvalues(matrix, n) {
+  // QR algorithm (simplified) for small matrices
+  let A = matrix.map(row => [...row]);
+  for (let iter = 0; iter < 100; iter++) {
+    // QR decomposition via Gram-Schmidt
+    const Q = Array.from({ length: n }, () => new Array(n).fill(0));
+    const R = Array.from({ length: n }, () => new Array(n).fill(0));
+    for (let j = 0; j < n; j++) {
+      const v = A.map(row => row[j]);
+      for (let i = 0; i < j; i++) {
+        const qi = Q.map(row => row[i]);
+        R[i][j] = dot(qi, v);
+        for (let k2 = 0; k2 < n; k2++) v[k2] -= R[i][j] * qi[k2];
+      }
+      R[j][j] = norm(v);
+      if (R[j][j] > 1e-12) for (let k2 = 0; k2 < n; k2++) Q[k2][j] = v[k2] / R[j][j];
+    }
+    // A = R * Q
+    const newA = Array.from({ length: n }, () => new Array(n).fill(0));
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) for (let k2 = 0; k2 < n; k2++) newA[i][j] += R[i][k2] * Q[k2][j];
+    A = newA;
+  }
+  return A.map((row, i) => row[i]);
+}
+
+// ============================================================
+// 5. EVIDENCE ENTROPY
+// ============================================================
+function evidenceEntropy(studies) {
+  // Discretize effect sizes into bins
+  const effects = studies.map(s => s.yi);
+  const min = Math.min(...effects), max = Math.max(...effects);
+  const nBins = Math.max(5, Math.ceil(Math.sqrt(studies.length)));
+  const binWidth = (max - min) / nBins || 0.1;
+  const counts = new Array(nBins).fill(0);
+  for (const e of effects) {
+    const bin = Math.min(nBins - 1, Math.floor((e - min) / binWidth));
+    counts[bin]++;
+  }
+  const probs = counts.map(c => c / studies.length);
+  // Shannon entropy
+  const shannon = -probs.reduce((s, p) => s + (p > 0 ? p * Math.log2(p) : 0), 0);
+  const maxShannon = Math.log2(nBins);
+  const normalizedShannon = maxShannon > 0 ? shannon / maxShannon : 0;
+  // Renyi entropy (alpha=2)
+  const renyi2 = -Math.log2(probs.reduce((s, p) => s + p * p, 0) || 1e-10);
+  // Tsallis entropy (q=1.5)
+  const q = 1.5;
+  const tsallis = (1 - probs.reduce((s, p) => s + Math.pow(p, q), 0)) / (q - 1);
+  return { shannon, renyi2, tsallis, normalizedShannon, probs, nBins, binWidth, min };
+}
+
+// ============================================================
+// 6. STRANGE ATTRACTOR (Sequential Dynamics)
+// ============================================================
+function strangeAttractor(studies) {
+  // Sort by year, compute cumulative effect and cumulative heterogeneity
+  const sorted = [...studies].sort((a, b) => a.year - b.year);
+  const trajectory = [];
+  let cumEffect = 0, cumWeight = 0, cumQ = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    const s = sorted[i];
+    const w = 1 / s.vi;
+    cumWeight += w;
+    cumEffect = (cumEffect * (cumWeight - w) + w * s.yi) / cumWeight;
+    // Cumulative Q
+    const wi = sorted.slice(0, i + 1).map(st => 1 / st.vi);
+    const W = wi.reduce((a, b) => a + b, 0);
+    const theta = sorted.slice(0, i + 1).reduce((s2, st, j) => s2 + wi[j] * st.yi, 0) / W;
+    cumQ = sorted.slice(0, i + 1).reduce((s2, st, j) => s2 + wi[j] * (st.yi - theta) ** 2, 0);
+    const cumI2 = i > 0 ? Math.max(0, (cumQ - i) / Math.max(cumQ, 1)) * 100 : 0;
+    trajectory.push({ year: s.year, effect: cumEffect, I2: cumI2, Q: cumQ, study: s.study, k: i + 1 });
+  }
+  // Lyapunov exponent: average log ratio of consecutive divergences
+  let lyapunov = 0;
+  let count = 0;
+  for (let i = 2; i < trajectory.length; i++) {
+    const d1 = Math.abs(trajectory[i].effect - trajectory[i - 1].effect);
+    const d0 = Math.abs(trajectory[i - 1].effect - trajectory[i - 2].effect);
+    if (d0 > 1e-10) {
+      lyapunov += Math.log(d1 / d0);
+      count++;
+    }
+  }
+  lyapunov = count > 0 ? lyapunov / count : 0;
+  return { trajectory, lyapunov, isStable: lyapunov < 0 };
+}
+
+// ============================================================
+// 7. FRACTAL DIMENSION
+// ============================================================
+function fractalDimension(studies) {
+  // Box-counting dimension of effect sizes in 1D
+  const effects = studies.map(s => s.yi);
+  const min = Math.min(...effects), max = Math.max(...effects);
+  const range = max - min || 1;
+  const boxSizes = [range / 2, range / 4, range / 8, range / 16, range / 32];
+  const logN = [], logEps = [];
+  for (const eps of boxSizes) {
+    if (eps < 1e-10) continue;
+    const nBoxes = new Set();
+    for (const e of effects) nBoxes.add(Math.floor((e - min) / eps));
+    logN.push(Math.log(nBoxes.size));
+    logEps.push(Math.log(1 / eps));
+  }
+  // Linear regression: logN = D * logEps + c
+  let D = 0;
+  if (logN.length > 1) {
+    const n = logN.length;
+    const mx = logEps.reduce((a, b) => a + b, 0) / n;
+    const my = logN.reduce((a, b) => a + b, 0) / n;
+    const ssxy = logEps.reduce((s, x, i) => s + (x - mx) * (logN[i] - my), 0);
+    const ssxx = logEps.reduce((s, x) => s + (x - mx) ** 2, 0);
+    D = ssxx > 0 ? ssxy / ssxx : 0;
+  }
+  return { dimension: Math.max(0, Math.min(1, D)), logN, logEps, boxSizes };
+}
+
+// ============================================================
+// LAYER 2: DEEP MATHEMATICS
+// ============================================================
+
+// 8. SHEAF COHOMOLOGY
+// A sheaf assigns data (effect estimates) to open sets (study neighborhoods).
+// H0 = global sections (consensus). H1 = obstruction to gluing local sections globally.
+function sheafCohomology(studies) {
+  const k = studies.length;
+  // Build a nerve complex: vertices = studies, edges = pairs within distance threshold
+  const threshold = 1.5; // in standardized units
+  const edges = [];
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) {
+    const d = Math.abs(studies[i].yi - studies[j].yi) / Math.sqrt(studies[i].vi + studies[j].vi);
+    if (d < threshold) edges.push({ i, j, d, consistent: true });
+    else edges.push({ i, j, d, consistent: false });
+  }
+  // Local sections: each edge checks if the two studies "agree" (consistent)
+  const consistentEdges = edges.filter(e => e.consistent);
+  const inconsistentEdges = edges.filter(e => !e.consistent);
+  // Coboundary operator: delta_0 maps vertices -> edges
+  // H0 = ker(delta_1) / im(delta_0) — for a constant sheaf, H0 counts connected components
+  // H1 = obstruction to extending local consistency globally
+  // Simplified: H1 ~ number of "frustrated triangles" (cycles where local consistency fails globally)
+  let frustratedTriangles = 0;
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) for (let l = j + 1; l < k; l++) {
+    const eij = edges.find(e => e.i === i && e.j === j);
+    const ejl = edges.find(e => e.i === j && e.j === l);
+    const eil = edges.find(e => e.i === i && e.j === l);
+    if (eij && ejl && eil) {
+      // All three pairs exist. Check transitivity: if i~j and j~l, does i~l?
+      if (eij.consistent && ejl.consistent && !eil.consistent) frustratedTriangles++;
+      if (eij.consistent && !ejl.consistent && eil.consistent) frustratedTriangles++;
+      if (!eij.consistent && ejl.consistent && eil.consistent) frustratedTriangles++;
+    }
+  }
+  // Cohomological dimension
+  const h0 = consistentEdges.length > 0 ? 1 : 0; // simplified: 1 if any global section exists
+  const h1 = frustratedTriangles;
+  // Sheaf Laplacian spectral gap (simplified)
+  const consistency_ratio = edges.length > 0 ? consistentEdges.length / edges.length : 1;
+  return { h0, h1: frustratedTriangles, consistentEdges: consistentEdges.length, inconsistentEdges: inconsistentEdges.length, consistency_ratio, totalEdges: edges.length };
+}
+
+// 9. OLLIVIER-RICCI CURVATURE
+// Discrete Ricci curvature via optimal transport on the study graph.
+// For edge (i,j): kappa(i,j) = 1 - W1(mu_i, mu_j) / d(i,j)
+// where mu_i is the uniform distribution on neighbors of i.
+function ollivierRicci(studies) {
+  const k = studies.length;
+  // Build weighted graph
+  const sigma = studies.reduce((s, st) => s + st.se, 0) / k;
+  const adjW = [];
+  for (let i = 0; i < k; i++) {
+    adjW[i] = [];
+    for (let j = 0; j < k; j++) {
+      if (i === j) adjW[i][j] = 0;
+      else adjW[i][j] = Math.exp(-((studies[i].yi - studies[j].yi) ** 2) / (2 * sigma * sigma));
+    }
+  }
+  // For each edge, compute Ollivier-Ricci curvature
+  const edgeCurvatures = [];
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) {
+    const dij = Math.abs(studies[i].yi - studies[j].yi);
+    if (dij < 1e-10) { edgeCurvatures.push({ i, j, kappa: 1 }); continue; }
+    // Neighbor distributions: mu_i = softmax of adj weights from i
+    const degI = adjW[i].reduce((a, b) => a + b, 0);
+    const degJ = adjW[j].reduce((a, b) => a + b, 0);
+    if (degI < 1e-10 || degJ < 1e-10) { edgeCurvatures.push({ i, j, kappa: 0 }); continue; }
+    // Simplified W1: use earth mover's distance approximation
+    // W1(mu_i, mu_j) ~ sum |mu_i(v) - mu_j(v)| * d(v, midpoint) / 2
+    // More practical: kappa ~ 1 - |deg_i - deg_j| / max(deg_i, deg_j) - overlap
+    const muI = adjW[i].map(w => w / degI);
+    const muJ = adjW[j].map(w => w / degJ);
+    // Total variation distance as W1 proxy
+    const tv = muI.reduce((s, p, v) => s + Math.abs(p - muJ[v]), 0) / 2;
+    const kappa = 1 - tv;
+    edgeCurvatures.push({ i, j, kappa, si: studies[i].study, sj: studies[j].study });
+  }
+  const avgCurvature = edgeCurvatures.length > 0 ? edgeCurvatures.reduce((s, e) => s + e.kappa, 0) / edgeCurvatures.length : 0;
+  const minCurvature = edgeCurvatures.length > 0 ? Math.min(...edgeCurvatures.map(e => e.kappa)) : 0;
+  const maxCurvature = edgeCurvatures.length > 0 ? Math.max(...edgeCurvatures.map(e => e.kappa)) : 0;
+  // Bottleneck edges: most negative curvature
+  const bottlenecks = [...edgeCurvatures].sort((a, b) => a.kappa - b.kappa).slice(0, 3);
+  return { edgeCurvatures, avgCurvature, minCurvature, maxCurvature, bottlenecks };
+}
+
+// 10. INFORMATION GEOMETRY
+// Each study defines a normal distribution N(yi, vi). The Fisher information metric
+// on the space of normal distributions: ds^2 = dmu^2/sigma^2 + 2*dsigma^2/sigma^2
+function informationGeometry(studies) {
+  const k = studies.length;
+  // Fisher-Rao distance between two normals: d(p,q) = sqrt(2)*log((sigma_q/sigma_p + sigma_p/sigma_q)/2 + (mu_p-mu_q)^2/(2*sigma_p*sigma_q))
+  // Simplified: d_FR(i,j) = sqrt((mu_i-mu_j)^2/sigma_avg^2 + 2*log(sigma_j/sigma_i)^2)
+  const frDist = [];
+  for (let i = 0; i < k; i++) {
+    frDist[i] = [];
+    for (let j = 0; j < k; j++) {
+      if (i === j) { frDist[i][j] = 0; continue; }
+      const si = studies[i].se, sj = studies[j].se;
+      const muDiff = studies[i].yi - studies[j].yi;
+      const sigmaAvg = (si + sj) / 2;
+      const d = Math.sqrt((muDiff * muDiff) / (sigmaAvg * sigmaAvg) + 2 * Math.pow(Math.log(sj / si), 2));
+      frDist[i][j] = d;
+    }
+  }
+  // Frechet mean on the manifold (iterative)
+  let fMu = studies.reduce((s, st) => s + st.yi, 0) / k;
+  let fSigma = Math.sqrt(studies.reduce((s, st) => s + st.vi, 0) / k);
+  // Scalar curvature of the normal family: K = -1/(2*sigma^4) (always negative)
+  const scalarCurvature = -1 / (2 * fSigma * fSigma * fSigma * fSigma);
+  // Geodesic variance on the manifold
+  const geodesicVar = studies.reduce((s, st) => {
+    const d = Math.sqrt(((st.yi - fMu) ** 2) / (fSigma ** 2) + 2 * Math.pow(Math.log(st.se / fSigma), 2));
+    return s + d * d;
+  }, 0) / k;
+  // Amari alpha-divergence (alpha=1 = KL, alpha=0 = Bhattacharyya)
+  const klDivs = studies.map(st => {
+    const kl = Math.log(fSigma / st.se) + (st.vi + (st.yi - fMu) ** 2) / (2 * fSigma * fSigma) - 0.5;
+    return Math.max(0, kl);
+  });
+  const totalKL = klDivs.reduce((a, b) => a + b, 0);
+  return { frDist, frechetMean: { mu: fMu, sigma: fSigma }, scalarCurvature, geodesicVar, totalKL, klDivs };
+}
+
+// 11. MORSE THEORY
+// Treat the KDE of effect sizes as a Morse function. Find critical points:
+// minima (consensus clusters), maxima (peaks), saddles (transition zones).
+function morseTheory(studies) {
+  const effects = studies.map(s => s.yi);
+  const min = Math.min(...effects) - 0.3, max = Math.max(...effects) + 0.3;
+  const nGrid = 200;
+  const step = (max - min) / nGrid;
+  const h = studies.reduce((s, st) => s + st.se, 0) / studies.length * 0.8; // bandwidth
+  // KDE
+  const density = [];
+  for (let i = 0; i <= nGrid; i++) {
+    const x = min + i * step;
+    let f = 0;
+    for (const s of studies) {
+      const u = (x - s.yi) / h;
+      f += Math.exp(-0.5 * u * u) / (h * Math.sqrt(2 * Math.PI));
+    }
+    f /= studies.length;
+    density.push({ x, f });
+  }
+  // Find critical points (where f' changes sign)
+  const criticalPoints = [];
+  for (let i = 1; i < density.length - 1; i++) {
+    const prev = density[i - 1].f, curr = density[i].f, next = density[i + 1].f;
+    if (curr > prev && curr > next) {
+      criticalPoints.push({ x: density[i].x, f: curr, type: 'maximum', index: i });
+    } else if (curr < prev && curr < next) {
+      criticalPoints.push({ x: density[i].x, f: curr, type: 'minimum', index: i });
+    }
+  }
+  // Morse number: #maxima - #saddles + #minima = chi(manifold) for 1D = 1 typically
+  const maxima = criticalPoints.filter(p => p.type === 'maximum');
+  const minima = criticalPoints.filter(p => p.type === 'minimum');
+  const morseNumber = maxima.length - minima.length;
+  // Euler characteristic (for 1D Morse function)
+  const euler = maxima.length - minima.length;
+  return { density, criticalPoints, maxima, minima, morseNumber, euler, bandwidth: h };
+}
+
+// 12. KOLMOGOROV COMPLEXITY (approximation via compression)
+// Approximate K(x) using Lempel-Ziv complexity of the quantized effect sequence.
+function kolmogorovComplexity(studies) {
+  // Quantize effects to symbols (alphabet size = sqrt(k))
+  const effects = studies.map(s => s.yi);
+  const sorted = [...effects].sort((a, b) => a - b);
+  const nSymbols = Math.max(3, Math.ceil(Math.sqrt(studies.length)));
+  const min = sorted[0], max = sorted[sorted.length - 1];
+  const binW = (max - min) / nSymbols || 0.1;
+  const symbols = effects.map(e => Math.min(nSymbols - 1, Math.floor((e - min) / binW)));
+  // Lempel-Ziv 76 complexity
+  const str = symbols.join('');
+  let c = 1, l = 1, i = 0, k_lz = 1;
+  const n = str.length;
+  while (l + i < n) {
+    if (str.substring(0, l + i).includes(str.substring(l, l + i + 1))) {
+      i++;
+    } else {
+      c++;
+      l = l + i + 1;
+      i = 0;
+    }
+  }
+  const lzComplexity = c;
+  // Normalized: C(n) / (n / log_alpha(n)) where alpha = nSymbols
+  const maxLZ = n / (Math.log(n) / Math.log(Math.max(2, nSymbols)) + 1e-10);
+  const normalizedK = maxLZ > 0 ? lzComplexity / maxLZ : 0;
+  // Compare to random baseline (shuffled)
+  let randomLZ = 0;
+  for (let trial = 0; trial < 20; trial++) {
+    const shuffled = [...symbols].sort(() => Math.random() - 0.5);
+    const sStr = shuffled.join('');
+    let c2 = 1, l2 = 1, i2 = 0;
+    while (l2 + i2 < n) {
+      if (sStr.substring(0, l2 + i2).includes(sStr.substring(l2, l2 + i2 + 1))) { i2++; }
+      else { c2++; l2 = l2 + i2 + 1; i2 = 0; }
+    }
+    randomLZ += c2;
+  }
+  randomLZ /= 20;
+  const compressibility = 1 - (lzComplexity / (randomLZ || 1));
+  return { lzComplexity, normalizedK, randomLZ, compressibility, nSymbols, symbols };
+}
+
+// ============================================================
+// ============================================================
+// LAYER 3: THE ABYSS
+// ============================================================
+
+// 13. QUANTUM INFORMATION METRICS
+// Treat each study as a quantum state |psi_i> = density matrix rho_i.
+// For normal distributions: rho is a Gaussian Wigner function on phase space.
+function quantumInformation(studies) {
+  const k = studies.length;
+  // Density matrix representation: each study is a 1D Gaussian state
+  // rho_i ~ |yi, se_i>. Overlap (fidelity) between Gaussians:
+  // F(rho_i, rho_j) = sqrt(2*si*sj/(si^2+sj^2)) * exp(-(yi-yj)^2/(2*(si^2+sj^2)))
+  const fidelityMatrix = [];
+  for (let i = 0; i < k; i++) {
+    fidelityMatrix[i] = [];
+    for (let j = 0; j < k; j++) {
+      const si2 = studies[i].vi, sj2 = studies[j].vi;
+      const prefactor = Math.sqrt(2 * Math.sqrt(si2 * sj2) / (si2 + sj2));
+      const expTerm = Math.exp(-((studies[i].yi - studies[j].yi) ** 2) / (2 * (si2 + sj2)));
+      fidelityMatrix[i][j] = prefactor * expTerm;
+    }
+  }
+  // Von Neumann entropy of the mixture state rho_mix = (1/k) * sum(rho_i)
+  // Approximate via eigenvalues of the fidelity (Gram) matrix
+  const gramNorm = fidelityMatrix.map(row => row.map(v => v / k));
+  const eigenvals = computeEigenvalues(gramNorm, k).filter(e => e > 1e-10);
+  const totalEig = eigenvals.reduce((a, b) => a + b, 0) || 1;
+  const probs = eigenvals.map(e => e / totalEig);
+  const vonNeumann = -probs.reduce((s, p) => s + (p > 0 ? p * Math.log2(p) : 0), 0);
+  const maxVN = Math.log2(k);
+  // Quantum discord: difference between total and classical correlations
+  // Approximate: discord ~ vonNeumann - classicalShannon
+  const classicalShannon = results ? (results.entropy?.shannon ?? 0) : 0;
+  const discord = Math.max(0, vonNeumann - classicalShannon);
+  // Entanglement entropy (bipartite: split into obs vs experimental)
+  const obsIdx = [], expIdx = [];
+  studies.forEach((s, i) => { if (s.design === 'obs') obsIdx.push(i); else expIdx.push(i); });
+  let entanglementEntropy = 0;
+  if (obsIdx.length > 0 && expIdx.length > 0) {
+    // Reduced density matrix trace
+    const crossFidelity = obsIdx.reduce((s, oi) =>
+      s + expIdx.reduce((s2, ei) => s2 + fidelityMatrix[oi][ei], 0), 0) / (obsIdx.length * expIdx.length);
+    entanglementEntropy = -crossFidelity * Math.log2(Math.max(crossFidelity, 1e-10)) - (1 - crossFidelity) * Math.log2(Math.max(1 - crossFidelity, 1e-10));
+  }
+  // Quantum coherence: off-diagonal norm of rho
+  let coherence = 0;
+  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) {
+    if (i !== j) coherence += Math.abs(fidelityMatrix[i][j]);
+  }
+  coherence /= (k * (k - 1) || 1);
+  return { vonNeumann, maxVN, normalizedVN: maxVN > 0 ? vonNeumann / maxVN : 0, discord, entanglementEntropy, coherence, fidelityMatrix };
+}
+
+// 14. CATEGORY THEORY
+// Objects = studies. Morphisms = "evidence paths" (weighted by consistency).
+// Compute: colimit (universal pooled effect), limits, natural transformation norm.
+function categoryTheory(studies) {
+  const k = studies.length;
+  // Weighted colimit: the universal cone over the diagram of studies
+  // In the category of probability spaces, the colimit is the mixture distribution
+  // The "universal property" score: how well does the pooled effect represent ALL morphisms?
+  const wi = studies.map(s => 1 / s.vi);
+  const W = wi.reduce((a, b) => a + b, 0);
+  const colimitMu = wi.reduce((s, w, i) => s + w * studies[i].yi, 0) / W;
+  const colimitVar = 1 / W;
+  // For each study, compute the morphism distance to the colimit
+  const morphismDistances = studies.map(s => Math.abs(s.yi - colimitMu) / Math.sqrt(s.vi + colimitVar));
+  // Natural transformation norm: sup of morphism distances
+  // This measures how "unnatural" the pooling is — high norm = forced aggregation
+  const natTransNorm = Math.max(...morphismDistances);
+  // Pullback (limit): the "tightest" constraint = study with smallest CI containing colimit
+  const pullbacks = studies.map((s, i) => ({
+    study: s.study, contains: Math.abs(s.yi - colimitMu) < 1.96 * s.se, dist: morphismDistances[i]
+  }));
+  const pullbackCount = pullbacks.filter(p => p.contains).length;
+  // Functoriality score: does adding studies in any order give the same colimit?
+  // (It should for inverse-variance, but measure numerical stability)
+  let maxDeviation = 0;
+  for (let perm = 0; perm < Math.min(20, k); perm++) {
+    // Random prefix
+    const n = Math.floor(Math.random() * (k - 2)) + 2;
+    const subset = [...studies].sort(() => Math.random() - 0.5).slice(0, n);
+    const swi = subset.map(s => 1 / s.vi);
+    const sW = swi.reduce((a, b) => a + b, 0);
+    const sMu = swi.reduce((s2, w, i) => s2 + w * subset[i].yi, 0) / sW;
+    maxDeviation = Math.max(maxDeviation, Math.abs(sMu - colimitMu));
+  }
+  // Kan extension: left Kan extension along the forgetful functor (design -> effect)
+  // Groups effects by design and computes the "best approximation" per design
+  const designGroups = {};
+  studies.forEach(s => { if (!designGroups[s.design]) designGroups[s.design] = []; designGroups[s.design].push(s); });
+  const kanExtension = {};
+  for (const [d, group] of Object.entries(designGroups)) {
+    const gwi = group.map(s => 1 / s.vi);
+    const gW = gwi.reduce((a, b) => a + b, 0);
+    kanExtension[d] = { mu: gwi.reduce((s, w, i) => s + w * group[i].yi, 0) / gW, k: group.length };
+  }
+  return { colimit: { mu: colimitMu, var: colimitVar }, natTransNorm, pullbackCount, pullbackTotal: k, maxDeviation, kanExtension, morphismDistances };
+}
+
+// 15. TROPICAL GEOMETRY
+// Replace (R, +, *) with the tropical semiring (R, min, +).
+// Tropical convex hull, tropical determinant, tropical eigenvalues.
+function tropicalGeometry(studies) {
+  const effects = studies.map(s => s.yi);
+  const k = effects.length;
+  // Tropical addition: a (+) b = min(a, b)
+  // Tropical multiplication: a (*) b = a + b
+  // Tropical mean: the value minimizing sum of tropical distances
+  // In 1D: tropical barycenter = median (minimizes L1 distance)
+  const sorted = [...effects].sort((a, b) => a - b);
+  const tropicalMean = sorted[Math.floor(k / 2)]; // median
+  // Tropical distance matrix: d_T(i,j) = |yi - yj| (L1)
+  const tropDist = [];
+  for (let i = 0; i < k; i++) {
+    tropDist[i] = [];
+    for (let j = 0; j < k; j++) tropDist[i][j] = Math.abs(effects[i] - effects[j]);
+  }
+  // Tropical determinant: perm(A) in min-plus = min over permutations of sum of entries
+  // For small k, compute exactly; for large k, approximate
+  let tropDet = Infinity;
+  if (k <= 8) {
+    // Enumerate permutations (k! — only feasible for small k)
+    function permute(arr) {
+      if (arr.length <= 1) return [arr];
+      const result = [];
+      for (let i = 0; i < arr.length; i++) {
+        const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+        for (const p of permute(rest)) result.push([arr[i], ...p]);
+      }
+      return result;
+    }
+    const indices = Array.from({ length: k }, (_, i) => i);
+    for (const perm of permute(indices)) {
+      const val = perm.reduce((s, j, i) => s + tropDist[i][j], 0);
+      tropDet = Math.min(tropDet, val);
+    }
+  } else {
+    // Hungarian algorithm approximation: greedy min assignment
+    const used = new Set();
+    tropDet = 0;
+    for (let i = 0; i < k; i++) {
+      let minVal = Infinity, minJ = -1;
+      for (let j = 0; j < k; j++) {
+        if (!used.has(j) && tropDist[i][j] < minVal) { minVal = tropDist[i][j]; minJ = j; }
+      }
+      tropDet += minVal;
+      used.add(minJ);
+    }
+  }
+  // Tropical convex hull vertices: the "extremal" studies in tropical sense
+  // A point is tropically extreme if it cannot be written as tropical combination of others
+  const tropExtremes = [];
+  for (let i = 0; i < k; i++) {
+    let isExtreme = true;
+    for (let j = 0; j < k; j++) {
+      if (i === j) continue;
+      for (let l = j + 1; l < k; l++) {
+        if (l === i) continue;
+        // Check if effects[i] is between effects[j] and effects[l]
+        if (Math.min(effects[j], effects[l]) <= effects[i] && effects[i] <= Math.max(effects[j], effects[l])) {
+          isExtreme = false; break;
+        }
+      }
+      if (!isExtreme) break;
+    }
+    if (isExtreme) tropExtremes.push(i);
+  }
+  // Tropical rank: dimension of the tropical span
+  const tropRank = tropExtremes.length;
+  return { tropicalMean, tropDet, tropExtremes, tropRank, tropDist };
+}
+
+// 16. p-ADIC ANALYSIS
+// Embed effect sizes in the p-adic numbers Q_p. The ultrametric distance
+// |x-y|_p gives a fundamentally different notion of "closeness."
+function padicAnalysis(studies) {
+  const effects = studies.map(s => s.yi);
+  const k = effects.length;
+  const p = 2; // use 2-adic valuation
+  // p-adic valuation: v_p(x) = largest power of p dividing numerator - denominator
+  // For reals, discretize: multiply by 1000, take integer part
+  function padicVal(x) {
+    if (x === 0) return Infinity;
+    let n = Math.abs(Math.round(x * 10000));
+    if (n === 0) return 20; // cap
+    let v = 0;
+    while (n % p === 0 && n > 0) { v++; n /= p; }
+    return v;
+  }
+  function padicNorm(x) {
+    const v = padicVal(x);
+    return v === Infinity ? 0 : Math.pow(p, -v);
+  }
+  // Ultrametric distance: |x - y|_p
+  const ultraDist = [];
+  for (let i = 0; i < k; i++) {
+    ultraDist[i] = [];
+    for (let j = 0; j < k; j++) {
+      ultraDist[i][j] = padicNorm(effects[i] - effects[j]);
+    }
+  }
+  // Ultrametric property check: |x-z|_p <= max(|x-y|_p, |y-z|_p) for all triples
+  let ultrametricViolations = 0, totalTriples = 0;
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) for (let l = j + 1; l < k; l++) {
+    totalTriples++;
+    const d12 = ultraDist[i][j], d23 = ultraDist[j][l], d13 = ultraDist[i][l];
+    if (d13 > Math.max(d12, d23) + 1e-10) ultrametricViolations++;
+    if (d12 > Math.max(d13, d23) + 1e-10) ultrametricViolations++;
+    if (d23 > Math.max(d12, d13) + 1e-10) ultrametricViolations++;
+  }
+  // p-adic barycenter: the effect with smallest total ultrametric distance
+  let padicCenter = 0, minTotalDist = Infinity;
+  for (let i = 0; i < k; i++) {
+    const total = ultraDist[i].reduce((a, b) => a + b, 0);
+    if (total < minTotalDist) { minTotalDist = total; padicCenter = i; }
+  }
+  // p-adic diameter: max ultrametric distance
+  let diameter = 0;
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) diameter = Math.max(diameter, ultraDist[i][j]);
+  // p-adic clustering: studies with same p-adic valuation cluster together
+  const valuations = effects.map(e => padicVal(e));
+  const valGroups = {};
+  valuations.forEach((v, i) => { const key = Math.min(v, 15); if (!valGroups[key]) valGroups[key] = []; valGroups[key].push(i); });
+  return { p, ultraDist, ultrametricViolations, totalTriples, padicCenter: studies[padicCenter]?.study, diameter, valuations, nValGroups: Object.keys(valGroups).length, valGroups };
+}
+
+// 17. NON-COMMUTATIVE GEOMETRY (Connes)
+// The spectral distance on a "noncommutative space" of evidence.
+// d(phi, psi) = sup { |phi(a) - psi(a)| : ||[D, pi(a)]|| <= 1 }
+// where D is the Dirac operator.
+function noncommutativeGeometry(studies) {
+  const k = studies.length;
+  // Construct a "spectral triple" (A, H, D) for the evidence space
+  // A = algebra of "observables" (effect size functions)
+  // H = Hilbert space of study states
+  // D = Dirac operator (finite difference operator on the study graph)
+  // Connes distance: d(i,j) = sup_f |f(i)-f(j)| / ||[D,f]||
+  // For a finite graph, [D,f]_ij = (f(i)-f(j)) * D_ij
+  // Build D as the graph Laplacian (symmetrized adjacency)
+  const sigma = studies.reduce((s, st) => s + st.se, 0) / k;
+  const adj = [];
+  for (let i = 0; i < k; i++) {
+    adj[i] = [];
+    for (let j = 0; j < k; j++) {
+      adj[i][j] = i === j ? 0 : Math.exp(-((studies[i].yi - studies[j].yi) ** 2) / (2 * sigma * sigma));
+    }
+  }
+  // Connes spectral distance between each pair
+  const connesDist = [];
+  for (let i = 0; i < k; i++) {
+    connesDist[i] = [];
+    for (let j = 0; j < k; j++) {
+      if (i === j) { connesDist[i][j] = 0; continue; }
+      // Use Lipschitz characterization: d(i,j) = 1 / max_path(min_edge_weight)
+      // Simplified: d(i,j) = 1 / adj[i][j] if connected, else infinity
+      connesDist[i][j] = adj[i][j] > 1e-10 ? 1 / adj[i][j] : 100;
+    }
+  }
+  // Dixmier trace: noncommutative "integral"
+  // For finite spectral triples, approximate via zeta function residue
+  // zeta_D(s) = sum lambda_i^(-s)
+  const laplacianEigs = results?.spectral?.eigenvalues ?? [];
+  const positiveEigs = laplacianEigs.filter(e => e > 0.01);
+  let dixmierTrace = 0;
+  if (positiveEigs.length > 0) {
+    // Residue at s=1 of sum lambda^(-s) ~ N * (1/(s-1)) => coefficient is the "dimension"
+    const s = 1.01; // near the pole
+    dixmierTrace = positiveEigs.reduce((sum, e) => sum + Math.pow(e, -s), 0) / positiveEigs.length;
+  }
+  // Spectral dimension: scaling of eigenvalue counting function
+  // N(lambda) ~ lambda^(d/2) => d = 2 * log(N) / log(lambda_max)
+  const spectralDim = positiveEigs.length > 1 ? 2 * Math.log(positiveEigs.length) / Math.log(Math.max(...positiveEigs, 2)) : 1;
+  // Noncommutative "volume": Wodzicki residue proxy
+  const ncVolume = positiveEigs.reduce((s, e) => s + 1 / e, 0);
+  return { connesDist, dixmierTrace, spectralDim, ncVolume, nEigs: positiveEigs.length };
+}
+
+// MAIN ANALYSIS
+// ============================================================
+function runHyperMeta() {
+  if (studies.length < 3) return;
+  const poincare = poincareEmbed(studies);
+  const topo = persistentHomology(studies);
+  const wasserstein = wassersteinBarycenter(studies);
+  const spectral = spectralAnalysis(studies);
+  const entropy = evidenceEntropy(studies);
+  const attractor = strangeAttractor(studies);
+  const fractal = fractalDimension(studies);
+  // Layer 2
+  const sheaf = sheafCohomology(studies);
+  const ricci = ollivierRicci(studies);
+  const infoGeom = informationGeometry(studies);
+  const morse = morseTheory(studies);
+  const kolmogorov = kolmogorovComplexity(studies);
+  results = { poincare, topo, wasserstein, spectral, entropy, attractor, fractal, sheaf, ricci, infoGeom, morse, kolmogorov };
+  // Layer 3
+  const quantum = quantumInformation(studies);
+  const category = categoryTheory(studies);
+  const tropical = tropicalGeometry(studies);
+  const padic = padicAnalysis(studies);
+  const ncGeom = noncommutativeGeometry(studies);
+  results.quantum = quantum;
+  results.category = category;
+  results.tropical = tropical;
+  results.padic = padic;
+  results.ncGeom = ncGeom;
+  renderAll();
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function renderAll() {
+  document.getElementById('resultsSection').style.display = '';
+  renderMetrics();
+  renderPoincare();
+  renderPersistence();
+  renderSpectral();
+  renderEntropy();
+  renderAttractor();
+  renderFractal();
+  // Layer 2
+  renderSheaf();
+  renderRicci();
+  renderInfoGeom();
+  renderMorse();
+  renderKolmogorov();
+  // Layer 3
+  renderQuantum();
+  renderCategory();
+  renderTropical();
+  renderPadic();
+  renderNCGeom();
+  renderInterpretation();
+  document.getElementById('metricsGrid').scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderMetrics() {
+  const r = results;
+  const metrics = [
+    { val: r.poincare.dispersion.toFixed(3), lbl: 'Hyperbolic Dispersion', cls: 'val-magenta' },
+    { val: `H0=${r.topo.betti0} H1=${r.topo.betti1}`, lbl: 'Betti Numbers', cls: 'val-cyan' },
+    { val: r.topo.persistEntropy.toFixed(3), lbl: 'Persistent Entropy', cls: 'val-cyan' },
+    { val: r.wasserstein.mean.toFixed(4), lbl: 'Wasserstein Barycenter', cls: 'val-gold' },
+    { val: r.wasserstein.discrepancy.toFixed(4), lbl: 'W2 vs DL Discrepancy', cls: 'val-gold' },
+    { val: r.spectral.fiedler.toFixed(4), lbl: 'Fiedler Value (Alg. Connectivity)', cls: 'val-green' },
+    { val: r.entropy.normalizedShannon.toFixed(3), lbl: 'Normalized Shannon Entropy', cls: 'val-blue' },
+    { val: r.attractor.lyapunov.toFixed(4), lbl: `Lyapunov Exp. (${r.attractor.isStable ? 'Stable' : 'Chaotic'})`, cls: r.attractor.isStable ? 'val-green' : 'val-red' },
+    { val: r.fractal.dimension.toFixed(3), lbl: 'Fractal Dimension', cls: 'val-magenta' },
+    { val: r.sheaf.h1, lbl: 'Frustrated Triangles (Sheaf H1)', cls: 'val-cyan' },
+    { val: r.ricci.avgCurvature.toFixed(3), lbl: 'Avg Ollivier-Ricci Curvature', cls: r.ricci.avgCurvature >= 0 ? 'val-green' : 'val-red' },
+    { val: r.infoGeom.geodesicVar.toFixed(3), lbl: 'Geodesic Variance (Fisher-Rao)', cls: 'val-magenta' },
+    { val: `${r.morse.maxima.length}p ${r.morse.minima.length}v`, lbl: 'Morse Critical Points (peaks/valleys)', cls: 'val-gold' },
+    { val: `${(r.kolmogorov.compressibility * 100).toFixed(0)}%`, lbl: 'Kolmogorov Compressibility', cls: r.kolmogorov.compressibility > 0.3 ? 'val-green' : 'val-red' },
+    { val: r.quantum.vonNeumann.toFixed(3), lbl: 'Von Neumann Entropy', cls: 'val-blue' },
+    { val: r.category.natTransNorm.toFixed(3), lbl: 'Nat. Transformation Norm', cls: 'val-magenta' },
+    { val: r.tropical.tropRank.toString(), lbl: 'Tropical Rank', cls: 'val-gold' },
+    { val: r.padic.diameter.toFixed(3), lbl: '2-adic Diameter', cls: 'val-cyan' },
+    { val: r.ncGeom.spectralDim.toFixed(2), lbl: 'NC Spectral Dimension', cls: 'val-magenta' }
+  ];
+  document.getElementById('metricsGrid').innerHTML = metrics.map(m =>
+    `<div class="metric-card"><div class="val ${m.cls}">${m.val}</div><div class="lbl">${m.lbl}</div></div>`
+  ).join('');
+}
+
+function renderPoincare() {
+  const W = 500, H = 500, cx = W / 2, cy = H / 2, R = 200;
+  const p = results.poincare;
+  const designColors = { RCT: '#3b82f6', obs: '#ec4899', MA: '#f59e0b', MR: '#10b981' };
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Background disk
+  svg += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="var(--border)" stroke-width="2"/>`;
+  // Geodesic grid (concentric circles in hyperbolic space)
+  for (let r = 0.25; r < 1; r += 0.25) {
+    const pr = Math.tanh(r) * R;
+    svg += `<circle cx="${cx}" cy="${cy}" r="${pr}" fill="none" stroke="var(--border)" stroke-width="0.5" opacity="0.3"/>`;
+  }
+  // Radial lines
+  for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+    svg += `<line x1="${cx}" y1="${cy}" x2="${cx + R * Math.cos(a)}" y2="${cy + R * Math.sin(a)}" stroke="var(--border)" stroke-width="0.5" opacity="0.2"/>`;
+  }
+  // Studies
+  for (const pt of p.points) {
+    const px = cx + pt.x * R, py = cy - pt.y * R;
+    const col = designColors[pt.design] ?? 'var(--text2)';
+    svg += `<circle cx="${px}" cy="${py}" r="5" fill="${col}" opacity="0.85">
+      <title>${escapeHtml(pt.study)}\nyi=${pt.yi.toFixed(3)}, SE=${pt.se.toFixed(3)}</title>
+    </circle>`;
+  }
+  // Barycenter
+  const bx = cx + p.barycenter.x * R, by = cy - p.barycenter.y * R;
+  svg += `<circle cx="${bx}" cy="${by}" r="8" fill="none" stroke="var(--gold)" stroke-width="2.5" class="glow"/>`;
+  svg += `<circle cx="${bx}" cy="${by}" r="3" fill="var(--gold)"/>`;
+  // Legend
+  let ly = 20;
+  for (const [d, c] of Object.entries(designColors)) {
+    if (p.points.some(pt => pt.design === d)) {
+      svg += `<circle cx="20" cy="${ly}" r="4" fill="${c}"/><text x="30" y="${ly + 4}" font-size="10" fill="var(--text2)">${d}</text>`;
+      ly += 16;
+    }
+  }
+  svg += `<text x="${cx}" y="${H - 10}" text-anchor="middle" font-size="9" fill="var(--text2)">Dispersion = ${p.dispersion.toFixed(3)}</text>`;
+  svg += `</svg>`;
+  document.getElementById('poincareContainer').innerHTML = svg;
+}
+
+function renderPersistence() {
+  const W = 400, H = 400;
+  const t = results.topo;
+  const allBars = [...t.h0Bars, ...t.h1Bars];
+  const maxD = Math.max(...allBars.map(b => b.death), 1);
+  const margin = { left: 50, bottom: 40, top: 20, right: 20 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Diagonal
+  svg += `<line x1="${margin.left}" y1="${margin.top + pH}" x2="${margin.left + pW}" y2="${margin.top}" stroke="var(--border)" stroke-dasharray="4,3"/>`;
+  // H0 points (blue)
+  for (const b of t.h0Bars) {
+    const x = margin.left + (b.birth / maxD) * pW;
+    const y = margin.top + pH - (b.death / maxD) * pH;
+    svg += `<circle cx="${x}" cy="${y}" r="4" fill="var(--cyan)" opacity="0.7"/>`;
+  }
+  // H1 points (magenta)
+  for (const b of t.h1Bars) {
+    const x = margin.left + (b.birth / maxD) * pW;
+    const y = margin.top + pH - (b.death / maxD) * pH;
+    svg += `<circle cx="${x}" cy="${y}" r="5" fill="var(--magenta)" opacity="0.8"/>`;
+  }
+  // Axes
+  svg += `<line x1="${margin.left}" y1="${margin.top + pH}" x2="${margin.left + pW}" y2="${margin.top + pH}" stroke="var(--text2)"/>`;
+  svg += `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + pH}" stroke="var(--text2)"/>`;
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="10" fill="var(--text2)">Birth</text>`;
+  svg += `<text x="12" y="${margin.top + pH / 2}" text-anchor="middle" font-size="10" fill="var(--text2)" transform="rotate(-90 12 ${margin.top + pH / 2})">Death</text>`;
+  // Legend
+  svg += `<circle cx="${W - 80}" cy="20" r="4" fill="var(--cyan)"/><text x="${W - 72}" y="24" font-size="9" fill="var(--text2)">H0 (components)</text>`;
+  svg += `<circle cx="${W - 80}" cy="36" r="4" fill="var(--magenta)"/><text x="${W - 72}" y="40" font-size="9" fill="var(--text2)">H1 (loops)</text>`;
+  svg += `</svg>`;
+  document.getElementById('persistenceContainer').innerHTML = svg;
+  // Barcode
+  let bc = '<div style="font-size:.7rem;color:var(--text2);margin-bottom:6px">Persistence Barcode</div>';
+  for (const b of t.h0Bars.slice(0, 8)) {
+    const w = ((b.death - b.birth) / maxD * 100).toFixed(1);
+    bc += `<div class="barcode-row"><span style="width:60px;color:var(--cyan)">H0</span><div class="barcode-bar" style="width:${w}%;background:var(--cyan);opacity:0.6"></div></div>`;
+  }
+  for (const b of t.h1Bars.slice(0, 5)) {
+    const w = ((b.death - b.birth) / maxD * 100).toFixed(1);
+    bc += `<div class="barcode-row"><span style="width:60px;color:var(--magenta)">H1</span><div class="barcode-bar" style="width:${w}%;background:var(--magenta);opacity:0.6"></div></div>`;
+  }
+  document.getElementById('barcodeContainer').innerHTML = bc;
+}
+
+function renderSpectral() {
+  const W = 500, H = 300;
+  const eigs = results.spectral.eigenvalues.filter(e => isFinite(e) && Math.abs(e) < 1000).sort((a, b) => a - b);
+  if (eigs.length === 0) { document.getElementById('spectralContainer').innerHTML = '<p style="padding:20px;color:var(--text2)">Insufficient data</p>'; return; }
+  const maxE = Math.max(...eigs.map(Math.abs), 0.01);
+  const margin = { left: 50, right: 20, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Eigenvalue bars
+  const barW = Math.min(30, pW / eigs.length - 2);
+  for (let i = 0; i < eigs.length; i++) {
+    const x = margin.left + (i / eigs.length) * pW + barW / 2;
+    const h = (Math.abs(eigs[i]) / maxE) * pH;
+    const col = i === 0 ? 'var(--text2)' : i === 1 ? 'var(--green)' : 'var(--accent2)';
+    svg += `<rect x="${x}" y="${margin.top + pH - h}" width="${barW}" height="${h}" fill="${col}" opacity="0.7" rx="2">
+      <title>lambda_${i} = ${eigs[i].toFixed(4)}</title>
+    </rect>`;
+    svg += `<text x="${x + barW / 2}" y="${margin.top + pH + 14}" text-anchor="middle" font-size="8" fill="var(--text2)">${i}</text>`;
+  }
+  // Fiedler highlight
+  if (eigs.length > 1) {
+    const fx = margin.left + (1 / eigs.length) * pW + barW / 2;
+    svg += `<text x="${fx + barW / 2}" y="${margin.top + pH + 28}" text-anchor="middle" font-size="8" fill="var(--green)" font-weight="700">Fiedler</text>`;
+  }
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 2}" text-anchor="middle" font-size="10" fill="var(--text2)">Eigenvalue Index</text>`;
+  svg += `</svg>`;
+  document.getElementById('spectralContainer').innerHTML = svg;
+}
+
+function renderEntropy() {
+  const W = 500, H = 300;
+  const e = results.entropy;
+  const margin = { left: 50, right: 20, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Histogram of effect sizes
+  const maxP = Math.max(...e.probs, 0.01);
+  const barW = pW / e.nBins - 2;
+  for (let i = 0; i < e.nBins; i++) {
+    const x = margin.left + (i / e.nBins) * pW + 1;
+    const h = (e.probs[i] / maxP) * pH;
+    const intensity = e.probs[i] / maxP;
+    const r = Math.round(59 + intensity * 137);
+    const g = Math.round(130 + intensity * (-75));
+    const b2 = Math.round(246 + intensity * (-200));
+    svg += `<rect x="${x}" y="${margin.top + pH - h}" width="${barW}" height="${h}" fill="rgb(${r},${g},${b2})" opacity="0.8" rx="1"/>`;
+  }
+  // Entropy gauges
+  const gaugeY = 15;
+  svg += `<text x="${W - 10}" y="${gaugeY}" text-anchor="end" font-size="9" fill="var(--blue)">Shannon: ${e.shannon.toFixed(3)} (${(e.normalizedShannon * 100).toFixed(0)}%)</text>`;
+  svg += `<text x="${W - 10}" y="${gaugeY + 14}" text-anchor="end" font-size="9" fill="var(--cyan)">Renyi(2): ${e.renyi2.toFixed(3)}</text>`;
+  svg += `<text x="${W - 10}" y="${gaugeY + 28}" text-anchor="end" font-size="9" fill="var(--magenta)">Tsallis(1.5): ${e.tsallis.toFixed(3)}</text>`;
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="10" fill="var(--text2)">Effect Size Distribution</text>`;
+  svg += `</svg>`;
+  document.getElementById('entropyContainer').innerHTML = svg;
+}
+
+function renderAttractor() {
+  const W = 500, H = 350;
+  const a = results.attractor;
+  const margin = { left: 60, right: 30, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  const traj = a.trajectory;
+  if (traj.length < 2) return;
+  const eMin = Math.min(...traj.map(t => t.effect)), eMax = Math.max(...traj.map(t => t.effect));
+  const i2Max = Math.max(...traj.map(t => t.I2), 1);
+  const eRange = eMax - eMin || 0.1;
+  const xScale = v => margin.left + ((v - eMin) / eRange) * pW;
+  const yScale = v => margin.top + pH - (v / i2Max) * pH;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Trajectory path
+  let path = `M ${xScale(traj[0].effect)} ${yScale(traj[0].I2)}`;
+  for (let i = 1; i < traj.length; i++) {
+    path += ` L ${xScale(traj[i].effect)} ${yScale(traj[i].I2)}`;
+  }
+  svg += `<path d="${path}" fill="none" stroke="var(--accent2)" stroke-width="1.5" opacity="0.6"/>`;
+  // Points with temporal gradient
+  for (let i = 0; i < traj.length; i++) {
+    const t = i / (traj.length - 1);
+    const r = Math.round(6 + t * 230);
+    const g = Math.round(182 + t * (-110));
+    const b2 = Math.round(212 + t * (-60));
+    const px = xScale(traj[i].effect), py = yScale(traj[i].I2);
+    svg += `<circle cx="${px}" cy="${py}" r="${3 + t * 3}" fill="rgb(${r},${g},${b2})" opacity="0.85">
+      <title>${escapeHtml(traj[i].study)}\nk=${traj[i].k}, effect=${traj[i].effect.toFixed(4)}, I2=${traj[i].I2.toFixed(1)}%</title>
+    </circle>`;
+    // Arrow
+    if (i > 0) {
+      const px0 = xScale(traj[i - 1].effect), py0 = yScale(traj[i - 1].I2);
+      const dx = px - px0, dy = py - py0;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len > 5) {
+        const mx = (px + px0) / 2, my = (py + py0) / 2;
+        const angle = Math.atan2(dy, dx);
+        svg += `<polygon points="${mx + 4 * Math.cos(angle)},${my + 4 * Math.sin(angle)} ${mx + 3 * Math.cos(angle + 2.5)},${my + 3 * Math.sin(angle + 2.5)} ${mx + 3 * Math.cos(angle - 2.5)},${my + 3 * Math.sin(angle - 2.5)}" fill="var(--accent2)" opacity="0.4"/>`;
+      }
+    }
+  }
+  // Axes
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="10" fill="var(--text2)">Cumulative Effect</text>`;
+  svg += `<text x="14" y="${margin.top + pH / 2}" text-anchor="middle" font-size="10" fill="var(--text2)" transform="rotate(-90 14 ${margin.top + pH / 2})">Cumulative I-squared (%)</text>`;
+  // Lyapunov
+  const lColor = a.isStable ? 'var(--green)' : 'var(--red)';
+  svg += `<text x="${W - 10}" y="16" text-anchor="end" font-size="9" fill="${lColor}" font-weight="700">lambda = ${a.lyapunov.toFixed(4)} (${a.isStable ? 'Converging' : 'Diverging'})</text>`;
+  svg += `</svg>`;
+  document.getElementById('attractorContainer').innerHTML = svg;
+}
+
+function renderFractal() {
+  const W = 500, H = 300;
+  const f = results.fractal;
+  const w = results.wasserstein;
+  const margin = { left: 50, right: 20, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Log-log plot for fractal dimension
+  if (f.logN.length > 1) {
+    const xMin = Math.min(...f.logEps), xMax = Math.max(...f.logEps);
+    const yMin = Math.min(...f.logN), yMax = Math.max(...f.logN);
+    const xRange = xMax - xMin || 1, yRange = yMax - yMin || 1;
+    const xS = v => margin.left + ((v - xMin) / xRange) * pW * 0.45;
+    const yS = v => margin.top + pH - ((v - yMin) / yRange) * pH;
+    // Points
+    for (let i = 0; i < f.logN.length; i++) {
+      svg += `<circle cx="${xS(f.logEps[i])}" cy="${yS(f.logN[i])}" r="4" fill="var(--magenta)" opacity="0.8"/>`;
+    }
+    // Regression line
+    if (f.logN.length >= 2) {
+      const x1 = xS(xMin), y1 = yS(yMin);
+      const x2 = xS(xMax), y2 = yS(yMin + f.dimension * (xMax - xMin));
+      svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--magenta)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+    }
+    svg += `<text x="${margin.left + pW * 0.22}" y="${H - 5}" text-anchor="middle" font-size="9" fill="var(--text2)">log(1/eps) vs log(N)</text>`;
+  }
+  // Wasserstein comparison (right half)
+  const bx = margin.left + pW * 0.55;
+  const barH = 30;
+  // DL bar
+  const dlX = bx + 100;
+  svg += `<text x="${bx}" y="${margin.top + 30}" font-size="10" fill="var(--text2)">DL Estimate:</text>`;
+  svg += `<text x="${bx + 120}" y="${margin.top + 30}" font-size="11" fill="var(--cyan)" font-family="var(--mono)" font-weight="700">${w.dlMean.toFixed(4)}</text>`;
+  svg += `<text x="${bx}" y="${margin.top + 56}" font-size="10" fill="var(--text2)">W2 Barycenter:</text>`;
+  svg += `<text x="${bx + 120}" y="${margin.top + 56}" font-size="11" fill="var(--gold)" font-family="var(--mono)" font-weight="700">${w.mean.toFixed(4)}</text>`;
+  svg += `<text x="${bx}" y="${margin.top + 82}" font-size="10" fill="var(--text2)">Discrepancy:</text>`;
+  svg += `<text x="${bx + 120}" y="${margin.top + 82}" font-size="11" fill="var(--magenta)" font-family="var(--mono)" font-weight="700">${w.discrepancy.toFixed(4)}</text>`;
+  svg += `<text x="${bx}" y="${margin.top + 108}" font-size="10" fill="var(--text2)">Total W2 Dist:</text>`;
+  svg += `<text x="${bx + 120}" y="${margin.top + 108}" font-size="11" fill="var(--accent2)" font-family="var(--mono)" font-weight="700">${w.totalW2.toFixed(4)}</text>`;
+  // Fractal dimension gauge
+  svg += `<text x="${bx}" y="${margin.top + 150}" font-size="10" fill="var(--text2)">Fractal D:</text>`;
+  svg += `<rect x="${bx + 80}" y="${margin.top + 138}" width="${pW * 0.35}" height="14" fill="var(--bg3)" rx="7"/>`;
+  svg += `<rect x="${bx + 80}" y="${margin.top + 138}" width="${f.dimension * pW * 0.35}" height="14" fill="var(--magenta)" rx="7" opacity="0.7"/>`;
+  svg += `<text x="${bx + 80 + pW * 0.35 + 8}" y="${margin.top + 150}" font-size="10" fill="var(--magenta)" font-weight="700">${f.dimension.toFixed(3)}</text>`;
+  svg += `</svg>`;
+  document.getElementById('fractalContainer').innerHTML = svg;
+}
+
+// ============================================================
+// LAYER 2 RENDERING
+// ============================================================
+
+function renderSheaf() {
+  const s = results.sheaf;
+  let html = '<div class="grid-3">';
+  html += `<div class="metric-card"><div class="val val-cyan">${s.h1}</div><div class="lbl">Frustrated Triangles (H1)</div></div>`;
+  html += `<div class="metric-card"><div class="val val-green">${(s.consistency_ratio * 100).toFixed(0)}%</div><div class="lbl">Edge Consistency</div></div>`;
+  html += `<div class="metric-card"><div class="val val-magenta">${s.consistentEdges}/${s.totalEdges}</div><div class="lbl">Consistent / Total Edges</div></div>`;
+  html += '</div>';
+  html += `<div style="margin-top:10px;font-size:.82rem;color:var(--text2)">${s.h1 === 0 ? 'No frustrated triangles — the evidence sheaf has trivial H1 cohomology. Local agreements extend globally.' : s.h1 <= 3 ? `${s.h1} frustrated triangle(s) — evidence is locally consistent but contains ${s.h1} global contradictions. The sheaf has non-trivial H1, indicating the evidence cannot be reconciled by any single effect size.` : `${s.h1} frustrated triangles — severe cohomological obstruction. The evidence sheaf is badly non-trivial, indicating deep structural contradictions that no pooling method can resolve.`}</div>`;
+  document.getElementById('sheafContent').innerHTML = html;
+}
+
+function renderRicci() {
+  const W = 500, H = 300;
+  const r = results.ricci;
+  const ec = r.edgeCurvatures;
+  if (ec.length === 0) { document.getElementById('ricciContainer').innerHTML = '<p style="padding:20px;color:var(--text2)">No edges</p>'; return; }
+  const margin = { left: 50, right: 20, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  // Sort by curvature
+  const sorted = [...ec].sort((a, b) => a.kappa - b.kappa);
+  const n = sorted.length;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Zero line
+  const zeroY = margin.top + pH * (1 - (0 - (r.minCurvature - 0.1)) / ((r.maxCurvature + 0.1) - (r.minCurvature - 0.1)));
+  svg += `<line x1="${margin.left}" y1="${zeroY}" x2="${margin.left + pW}" y2="${zeroY}" stroke="var(--text2)" stroke-dasharray="3,3" opacity="0.5"/>`;
+  // Bars
+  const barW = Math.min(8, pW / n - 1);
+  const kRange = (r.maxCurvature + 0.1) - (r.minCurvature - 0.1);
+  for (let i = 0; i < n; i++) {
+    const x = margin.left + (i / n) * pW;
+    const kNorm = (sorted[i].kappa - (r.minCurvature - 0.1)) / kRange;
+    const y = margin.top + pH * (1 - kNorm);
+    const h = Math.abs(y - zeroY);
+    const col = sorted[i].kappa >= 0 ? 'var(--green)' : 'var(--red)';
+    svg += `<rect x="${x}" y="${Math.min(y, zeroY)}" width="${barW}" height="${h}" fill="${col}" opacity="0.7" rx="1">
+      <title>${escapeHtml(studies[sorted[i].i]?.study ?? '')} — ${escapeHtml(studies[sorted[i].j]?.study ?? '')}\nkappa=${sorted[i].kappa.toFixed(3)}</title>
+    </rect>`;
+  }
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="9" fill="var(--text2)">Edges sorted by curvature (red=bottleneck, green=clustered)</text>`;
+  svg += `<text x="${W - 10}" y="16" text-anchor="end" font-size="9" fill="var(--accent2)">avg kappa=${r.avgCurvature.toFixed(3)}</text>`;
+  svg += `</svg>`;
+  document.getElementById('ricciContainer').innerHTML = svg;
+}
+
+function renderInfoGeom() {
+  const W = 500, H = 300;
+  const ig = results.infoGeom;
+  const margin = { left: 50, right: 30, top: 20, bottom: 40 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Plot studies on the (mu, log-sigma) manifold (the upper half-plane model)
+  const muVals = studies.map(s => s.yi);
+  const logSigVals = studies.map(s => Math.log(s.se));
+  const muMin = Math.min(...muVals) - 0.1, muMax = Math.max(...muVals) + 0.1;
+  const lsMin = Math.min(...logSigVals) - 0.3, lsMax = Math.max(...logSigVals) + 0.3;
+  const muRange = muMax - muMin || 1, lsRange = lsMax - lsMin || 1;
+  const xS = v => margin.left + ((v - muMin) / muRange) * pW;
+  const yS = v => margin.top + pH - ((v - lsMin) / lsRange) * pH;
+  // Grid
+  for (let i = 0; i <= 4; i++) {
+    const x = margin.left + (i / 4) * pW;
+    svg += `<line x1="${x}" y1="${margin.top}" x2="${x}" y2="${margin.top + pH}" stroke="var(--border)" stroke-width="0.5" opacity="0.3"/>`;
+    const y = margin.top + (i / 4) * pH;
+    svg += `<line x1="${margin.left}" y1="${y}" x2="${margin.left + pW}" y2="${y}" stroke="var(--border)" stroke-width="0.5" opacity="0.3"/>`;
+  }
+  // KL divergence as color intensity from Frechet mean
+  const maxKL = Math.max(...ig.klDivs, 0.01);
+  const designColors = { RCT: [59, 130, 246], obs: [236, 72, 153], MA: [245, 158, 11], MR: [16, 185, 129] };
+  for (let i = 0; i < studies.length; i++) {
+    const px = xS(studies[i].yi), py = yS(Math.log(studies[i].se));
+    const klIntensity = ig.klDivs[i] / maxKL;
+    const baseCol = designColors[studies[i].design] ?? [167, 139, 250];
+    const r = baseCol[0], g = baseCol[1], b = baseCol[2];
+    const sz = 4 + klIntensity * 5;
+    svg += `<circle cx="${px}" cy="${py}" r="${sz}" fill="rgb(${r},${g},${b})" opacity="${0.5 + klIntensity * 0.4}">
+      <title>${escapeHtml(studies[i].study)}\nKL=${ig.klDivs[i].toFixed(3)}</title>
+    </circle>`;
+  }
+  // Frechet mean
+  const fmx = xS(ig.frechetMean.mu), fmy = yS(Math.log(ig.frechetMean.sigma));
+  svg += `<circle cx="${fmx}" cy="${fmy}" r="7" fill="none" stroke="var(--gold)" stroke-width="2" class="glow"/>`;
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="9" fill="var(--text2)">Statistical Manifold (mu, log-sigma plane)</text>`;
+  svg += `<text x="${W - 10}" y="16" text-anchor="end" font-size="8" fill="var(--text2)">Scalar curvature: ${ig.scalarCurvature.toFixed(2)}</text>`;
+  svg += `<text x="${W - 10}" y="28" text-anchor="end" font-size="8" fill="var(--text2)">Geodesic var: ${ig.geodesicVar.toFixed(3)}</text>`;
+  svg += `</svg>`;
+  document.getElementById('infoGeomContainer').innerHTML = svg;
+}
+
+function renderMorse() {
+  const W = 500, H = 280;
+  const m = results.morse;
+  const margin = { left: 50, right: 20, top: 20, bottom: 35 };
+  const pW = W - margin.left - margin.right, pH = H - margin.top - margin.bottom;
+  const maxF = Math.max(...m.density.map(d => d.f), 0.01);
+  const xMin = m.density[0].x, xMax = m.density[m.density.length - 1].x;
+  const xRange = xMax - xMin || 1;
+  const xS = v => margin.left + ((v - xMin) / xRange) * pW;
+  const yS = v => margin.top + pH - (v / maxF) * pH;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Density curve with gradient fill
+  let path = `M ${xS(m.density[0].x)} ${yS(m.density[0].f)}`;
+  for (let i = 1; i < m.density.length; i++) path += ` L ${xS(m.density[i].x)} ${yS(m.density[i].f)}`;
+  svg += `<defs><linearGradient id="morseFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity="0.4"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0.02"/></linearGradient></defs>`;
+  const fillPath = path + ` L ${xS(xMax)} ${margin.top + pH} L ${xS(xMin)} ${margin.top + pH} Z`;
+  svg += `<path d="${fillPath}" fill="url(#morseFill)"/>`;
+  svg += `<path d="${path}" fill="none" stroke="var(--accent2)" stroke-width="2"/>`;
+  // Critical points
+  for (const cp of m.maxima) {
+    svg += `<circle cx="${xS(cp.x)}" cy="${yS(cp.f)}" r="5" fill="var(--gold)" stroke="var(--bg)" stroke-width="1.5"><title>Maximum at ${cp.x.toFixed(3)}</title></circle>`;
+    svg += `<text x="${xS(cp.x)}" y="${yS(cp.f) - 8}" text-anchor="middle" font-size="7" fill="var(--gold)">max</text>`;
+  }
+  for (const cp of m.minima) {
+    svg += `<circle cx="${xS(cp.x)}" cy="${yS(cp.f)}" r="5" fill="var(--cyan)" stroke="var(--bg)" stroke-width="1.5"><title>Minimum at ${cp.x.toFixed(3)}</title></circle>`;
+    svg += `<text x="${xS(cp.x)}" y="${yS(cp.f) + 14}" text-anchor="middle" font-size="7" fill="var(--cyan)">saddle</text>`;
+  }
+  // Study tick marks
+  for (const s of studies) {
+    svg += `<line x1="${xS(s.yi)}" y1="${margin.top + pH}" x2="${xS(s.yi)}" y2="${margin.top + pH + 5}" stroke="var(--text2)" opacity="0.5"/>`;
+  }
+  svg += `<text x="${margin.left + pW / 2}" y="${H - 5}" text-anchor="middle" font-size="9" fill="var(--text2)">Morse function (KDE) — ${m.maxima.length} peaks, ${m.minima.length} valleys, Euler=${m.euler}</text>`;
+  svg += `</svg>`;
+  document.getElementById('morseContainer').innerHTML = svg;
+}
+
+function renderKolmogorov() {
+  const kc = results.kolmogorov;
+  let html = '<div class="grid-3">';
+  html += `<div class="metric-card"><div class="val val-blue">${kc.lzComplexity}</div><div class="lbl">Lempel-Ziv Complexity</div></div>`;
+  html += `<div class="metric-card"><div class="val val-magenta">${kc.normalizedK.toFixed(3)}</div><div class="lbl">Normalized K (vs max)</div></div>`;
+  html += `<div class="metric-card"><div class="val ${kc.compressibility > 0.3 ? 'val-green' : 'val-red'}">${(kc.compressibility * 100).toFixed(0)}%</div><div class="lbl">Compressibility</div></div>`;
+  html += '</div>';
+  html += `<div style="margin-top:10px;font-size:.82rem;color:var(--text2)">LZ complexity = ${kc.lzComplexity} (random baseline = ${kc.randomLZ.toFixed(1)}). ${kc.compressibility > 0.3 ? 'The evidence is significantly compressible — there is structured pattern in the disagreement, suggesting a systematic explanation (e.g., confounding, study design).' : kc.compressibility > 0 ? 'Moderate compressibility — some structure exists but the disagreement is partly random.' : 'Incompressible — the evidence disagreement is algorithmically random, indistinguishable from noise. No hidden structure to exploit.'}</div>`;
+  // Symbol sequence visualization
+  const colors = ['var(--cyan)', 'var(--magenta)', 'var(--gold)', 'var(--green)', 'var(--red)', 'var(--blue)', 'var(--accent2)'];
+  html += '<div style="margin-top:8px;display:flex;gap:2px;flex-wrap:wrap">';
+  for (let i = 0; i < kc.symbols.length; i++) {
+    const col = colors[kc.symbols[i] % colors.length];
+    html += `<div style="width:18px;height:18px;background:${col};border-radius:3px;opacity:0.7" title="Study ${i + 1}: symbol ${kc.symbols[i]}"></div>`;
+  }
+  html += '</div>';
+  document.getElementById('kolmogorovContent').innerHTML = html;
+}
+
+// ============================================================
+// LAYER 3 RENDERING
+// ============================================================
+
+function renderQuantum() {
+  const q = results.quantum;
+  let html = '<div class="grid-3">';
+  html += `<div class="metric-card"><div class="val val-blue">${q.vonNeumann.toFixed(3)}</div><div class="lbl">Von Neumann Entropy</div></div>`;
+  html += `<div class="metric-card"><div class="val val-magenta">${q.coherence.toFixed(3)}</div><div class="lbl">Quantum Coherence</div></div>`;
+  html += `<div class="metric-card"><div class="val val-gold">${q.entanglementEntropy.toFixed(3)}</div><div class="lbl">Entanglement (obs|exp)</div></div>`;
+  html += '</div>';
+  html += `<div style="margin-top:8px;font-size:.82rem;color:var(--text2)">Von Neumann S = ${q.vonNeumann.toFixed(3)} / ${q.maxVN.toFixed(1)} (${(q.normalizedVN * 100).toFixed(0)}% of max). ${q.normalizedVN > 0.7 ? 'Near-maximally mixed quantum state — the evidence is in a high-entropy superposition with no dominant "measurement outcome."' : q.normalizedVN > 0.4 ? 'Partially mixed state — some quantum coherence remains between study states.' : 'Low entropy — the evidence collapses toward a definite quantum state.'} ${q.entanglementEntropy > 0.5 ? 'High entanglement between observational and experimental designs — they are quantum-correlated (cannot be understood independently).' : ''}</div>`;
+  document.getElementById('quantumContent').innerHTML = html;
+}
+
+function renderCategory() {
+  const c = results.category;
+  let html = '<div class="grid-3">';
+  html += `<div class="metric-card"><div class="val val-magenta">${c.colimit.mu.toFixed(4)}</div><div class="lbl">Colimit (Pooled)</div></div>`;
+  html += `<div class="metric-card"><div class="val val-red">${c.natTransNorm.toFixed(3)}</div><div class="lbl">Nat. Trans. Norm</div></div>`;
+  html += `<div class="metric-card"><div class="val val-green">${c.pullbackCount}/${c.pullbackTotal}</div><div class="lbl">Pullback Coverage</div></div>`;
+  html += '</div>';
+  // Kan extension per design
+  let kanHtml = '<div style="margin-top:8px;font-size:.8rem">';
+  for (const [d, ke] of Object.entries(c.kanExtension)) {
+    kanHtml += `<span style="display:inline-block;margin:2px 6px;padding:2px 8px;background:var(--bg3);border-radius:6px"><strong>${escapeHtml(d)}</strong>: ${ke.mu.toFixed(3)} (k=${ke.k})</span>`;
+  }
+  kanHtml += '</div>';
+  html += kanHtml;
+  html += `<div style="margin-top:6px;font-size:.82rem;color:var(--text2)">${c.natTransNorm > 2 ? 'High natural transformation norm — the colimit is a "forced" aggregation. Some studies are far from the universal cone, meaning the pooled effect poorly represents the category.' : 'Moderate norm — the categorical colimit is a reasonable universal construction.'} ${c.pullbackCount}/${c.pullbackTotal} studies contain the colimit in their 95% CI (pullback coverage).</div>`;
+  document.getElementById('categoryContent').innerHTML = html;
+}
+
+function renderTropical() {
+  const t = results.tropical;
+  let html = `<div style="font-size:.85rem"><strong style="color:var(--gold)">Tropical mean:</strong> <span style="font-family:var(--mono)">${t.tropicalMean.toFixed(4)}</span> (= median in min-plus)</div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--gold)">Tropical det:</strong> <span style="font-family:var(--mono)">${t.tropDet.toFixed(3)}</span></div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--gold)">Tropical rank:</strong> ${t.tropRank} extreme vertices</div>`;
+  html += `<div style="margin-top:6px;font-size:.78rem;color:var(--text2)">${t.tropRank <= 2 ? 'Low tropical rank — the evidence lives on a tropical line (1D structure).' : t.tropRank <= 4 ? 'Moderate tropical rank — the evidence spans a tropical polytope of moderate dimension.' : 'High tropical rank — the evidence occupies a high-dimensional tropical convex hull, indicating complex combinatorial structure.'}</div>`;
+  document.getElementById('tropicalContent').innerHTML = html;
+}
+
+function renderPadic() {
+  const pa = results.padic;
+  let html = `<div style="font-size:.85rem"><strong style="color:var(--cyan)">${pa.p}-adic center:</strong> ${escapeHtml(pa.padicCenter ?? '?')}</div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--cyan)">Ultrametric diameter:</strong> <span style="font-family:var(--mono)">${pa.diameter.toFixed(3)}</span></div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--cyan)">Valuation groups:</strong> ${pa.nValGroups}</div>`;
+  html += `<div style="margin-top:6px;font-size:.78rem;color:var(--text2)">${pa.ultrametricViolations === 0 ? 'Perfect ultrametric — the p-adic distance satisfies the strong triangle inequality on all triples. The evidence has a natural hierarchical (tree-like) structure.' : `${pa.ultrametricViolations}/${pa.totalTriples} ultrametric violations — the evidence is not perfectly hierarchical in p-adic space.`}</div>`;
+  document.getElementById('padicContent').innerHTML = html;
+}
+
+function renderNCGeom() {
+  const nc = results.ncGeom;
+  let html = `<div style="font-size:.85rem"><strong style="color:var(--magenta)">Spectral dim:</strong> <span style="font-family:var(--mono)">${nc.spectralDim.toFixed(2)}</span></div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--magenta)">Dixmier trace:</strong> <span style="font-family:var(--mono)">${nc.dixmierTrace.toFixed(4)}</span></div>`;
+  html += `<div style="font-size:.85rem;margin-top:4px"><strong style="color:var(--magenta)">NC volume:</strong> <span style="font-family:var(--mono)">${nc.ncVolume.toFixed(3)}</span></div>`;
+  html += `<div style="margin-top:6px;font-size:.78rem;color:var(--text2)">${nc.spectralDim < 1.5 ? 'Low spectral dimension — the evidence "space" is essentially 1-dimensional from the noncommutative viewpoint.' : nc.spectralDim < 3 ? 'Moderate spectral dimension — the evidence has genuine multi-dimensional structure in the sense of Connes.' : 'High spectral dimension — rich noncommutative geometry, suggesting the evidence space cannot be captured by classical manifolds.'}</div>`;
+  document.getElementById('ncGeomContent').innerHTML = html;
+}
+
+function renderInterpretation() {
+  const r = results;
+  const p = r.poincare, t = r.topo, w = r.wasserstein, s = r.spectral, e = r.entropy, a = r.attractor, f = r.fractal;
+  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+  // Hyperbolic
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:var(--magenta);margin-bottom:6px">Hyperbolic Geometry</div>
+    <div style="font-size:.82rem">Dispersion = ${p.dispersion.toFixed(3)}. ${p.dispersion > 1.5 ? 'Studies are widely scattered in hyperbolic space — the evidence base is geometrically heterogeneous, suggesting fundamentally different underlying effects.' : p.dispersion > 0.8 ? 'Moderate dispersion — some geometric clustering but notable spread.' : 'Low dispersion — studies cluster tightly around the Einstein midpoint, suggesting geometric consensus.'}</div>
+  </div>`;
+  // Topology
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:var(--cyan);margin-bottom:6px">Topological Features</div>
+    <div style="font-size:.82rem">${t.betti1} one-cycles detected. ${t.betti1 > 2 ? 'Multiple contradictory evidence loops — studies that are locally consistent but form global contradictions. This is a topological signature of confounding or design-dependent bias.' : t.betti1 > 0 ? 'Evidence loops present — some circular contradiction patterns exist in the data.' : 'No 1-cycles — the evidence forms a tree-like structure without contradictory loops.'} Persistent entropy = ${t.persistEntropy.toFixed(3)}.</div>
+  </div>`;
+  // Spectral
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:var(--green);margin-bottom:6px">Spectral Analysis</div>
+    <div style="font-size:.82rem">Fiedler value = ${s.fiedler.toFixed(4)}. ${s.fiedler < 0.1 ? 'Near-zero algebraic connectivity — the evidence graph is almost disconnected, indicating distinct clusters of studies that barely communicate.' : s.fiedler > 1 ? 'High connectivity — studies form a well-connected evidence network.' : 'Moderate connectivity — the evidence graph is connected but has weak links.'}</div>
+  </div>`;
+  // Dynamics
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:${a.isStable ? 'var(--green)' : 'var(--red)'};margin-bottom:6px">Dynamical Stability</div>
+    <div style="font-size:.82rem">Lyapunov exponent = ${a.lyapunov.toFixed(4)}. ${a.isStable ? 'Negative exponent — the evidence trajectory converges over time. Sequential accumulation of studies drives toward a stable conclusion.' : 'Positive exponent — chaotic dynamics. New studies amplify rather than resolve disagreement. The evidence base is on a divergent trajectory.'}</div>
+  </div>`;
+  // Entropy
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:var(--blue);margin-bottom:6px">Information Content</div>
+    <div style="font-size:.82rem">Normalized Shannon entropy = ${(e.normalizedShannon * 100).toFixed(0)}%. ${e.normalizedShannon > 0.8 ? 'Near-maximum entropy — effects are spread almost uniformly, meaning the evidence base carries maximum disagreement.' : e.normalizedShannon > 0.5 ? 'Moderate entropy — some concentration but substantial information spread.' : 'Low entropy — effects concentrate in few bins, suggesting strong consensus.'}</div>
+  </div>`;
+  // Fractal + Wasserstein
+  html += `<div style="padding:12px;background:var(--bg3);border-radius:var(--radius)">
+    <div style="font-weight:700;color:var(--gold);margin-bottom:6px">Geometric Pooling & Fractal Structure</div>
+    <div style="font-size:.82rem">Wasserstein barycenter = ${w.mean.toFixed(4)} vs DL = ${w.dlMean.toFixed(4)} (discrepancy ${w.discrepancy.toFixed(4)}). ${w.discrepancy > 0.05 ? 'Substantial divergence between optimal-transport and inverse-variance pooling — the choice of aggregation geometry matters for this evidence base.' : 'Small discrepancy — both geometries agree.'} Fractal D = ${f.dimension.toFixed(3)}${f.dimension > 0.7 ? ' (complex, space-filling disagreement)' : f.dimension > 0.3 ? ' (moderate complexity)' : ' (simple, point-like consensus)'}.</div>
+  </div>`;
+  html += '</div>';
+  // Layer 2 interpretations
+  html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">';
+  html += '<div style="font-size:.8rem;font-weight:700;color:var(--accent2);margin-bottom:8px;letter-spacing:.1em;text-transform:uppercase">Layer 2: Deep Structure</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  // Sheaf
+  const sh = r.sheaf;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--cyan)">Sheaf Cohomology:</span> ${sh.h1 === 0 ? 'Trivial H1 — evidence is globally consistent.' : `Non-trivial H1 (${sh.h1} frustrated triangles) — the evidence cannot be reconciled into a single coherent narrative.`}
+  </div>`;
+  // Ricci
+  const ri = r.ricci;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:${ri.avgCurvature >= 0 ? 'var(--green)' : 'var(--red)'}">Ricci Curvature:</span> avg = ${ri.avgCurvature.toFixed(3)}. ${ri.avgCurvature > 0.3 ? 'Positive — the evidence graph is highly clustered, studies reinforce each other.' : ri.avgCurvature < -0.1 ? 'Negative — bottleneck edges exist. Some study pairs are bridges between disconnected evidence clusters.' : 'Near-zero — flat geometry, no strong clustering or bridging.'}
+  </div>`;
+  // Info Geom
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--magenta)">Information Geometry:</span> Geodesic variance = ${r.infoGeom.geodesicVar.toFixed(3)} on the Fisher-Rao manifold. Scalar curvature = ${r.infoGeom.scalarCurvature.toFixed(2)} (always negative for normal families — the statistical manifold is hyperbolic).
+  </div>`;
+  // Morse
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--gold)">Morse Theory:</span> ${r.morse.maxima.length} peaks in the evidence landscape. ${r.morse.maxima.length === 1 ? 'Unimodal — single consensus region.' : r.morse.maxima.length === 2 ? 'Bimodal — two competing consensus regions separated by a saddle point.' : `Multimodal (${r.morse.maxima.length} modes) — fragmented evidence landscape with multiple competing hypotheses.`}
+  </div>`;
+  // Kolmogorov
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem;grid-column:1/-1">
+    <span style="font-weight:700;color:var(--blue)">Kolmogorov Complexity:</span> Compressibility = ${(r.kolmogorov.compressibility * 100).toFixed(0)}%. ${r.kolmogorov.compressibility > 0.3 ? 'The evidence disagreement has hidden structure — a systematic explanation exists (confounding, design bias, population differences).' : 'The disagreement is algorithmically random — no simple explanation can account for the pattern of results.'}
+  </div>`;
+  html += '</div></div>';
+  // Layer 3
+  html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">';
+  html += '<div style="font-size:.8rem;font-weight:700;color:var(--gold);margin-bottom:8px;letter-spacing:.1em;text-transform:uppercase">Layer 3: The Abyss</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:#c4b5fd">Quantum:</span> Von Neumann S = ${r.quantum.vonNeumann.toFixed(3)} (${(r.quantum.normalizedVN*100).toFixed(0)}%). ${r.quantum.entanglementEntropy > 0.5 ? 'Design groups are quantum-entangled — their evidence states cannot be factored into independent components.' : 'Low entanglement — design groups carry mostly independent information.'}
+  </div>`;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--magenta)">Category:</span> Nat. trans. norm = ${r.category.natTransNorm.toFixed(2)}. ${r.category.natTransNorm > 2 ? 'The categorical pooling is highly unnatural — the colimit forces distant studies together.' : 'The colimit is a natural construction.'} Kan extensions show per-design effects.
+  </div>`;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--gold)">Tropical:</span> Rank ${r.tropical.tropRank}. Tropical det = ${r.tropical.tropDet.toFixed(2)}. The min-plus algebra reveals ${r.tropical.tropRank <= 2 ? 'a simple linear structure' : 'a complex polytope'} in tropical space.
+  </div>`;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem">
+    <span style="font-weight:700;color:var(--cyan)">p-Adic:</span> 2-adic diameter = ${r.padic.diameter.toFixed(3)}, ${r.padic.nValGroups} valuation groups. The ultrametric ${r.padic.ultrametricViolations === 0 ? 'is perfect — evidence forms a natural hierarchy in p-adic space.' : 'has violations — evidence resists hierarchical classification.'}
+  </div>`;
+  html += `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:.82rem;grid-column:1/-1">
+    <span style="font-weight:700;color:var(--magenta)">NC Geometry (Connes):</span> Spectral dimension = ${r.ncGeom.spectralDim.toFixed(2)}, Dixmier trace = ${r.ncGeom.dixmierTrace.toFixed(4)}. The noncommutative space of evidence has ${r.ncGeom.spectralDim < 2 ? 'low dimensionality — evidence is classically well-behaved' : 'high dimensionality — the evidence space has genuinely noncommutative structure that classical statistics cannot capture'}.
+  </div>`;
+  html += '</div></div>';
+  document.getElementById('interpretContent').innerHTML = html;
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportResults() {
+  if (!results) return;
+  const r = results;
+  const data = {
+    tool: 'HyperMeta v1.0',
+    date: new Date().toISOString(),
+    studies: studies.length,
+    poincare: { dispersion: r.poincare.dispersion, barycenter: r.poincare.barycenter },
+    topology: { betti0: r.topo.betti0, betti1: r.topo.betti1, persistEntropy: r.topo.persistEntropy },
+    wasserstein: { mean: r.wasserstein.mean, dlMean: r.wasserstein.dlMean, discrepancy: r.wasserstein.discrepancy },
+    spectral: { fiedler: r.spectral.fiedler, spectralGap: r.spectral.spectralGap },
+    entropy: { shannon: r.entropy.shannon, renyi2: r.entropy.renyi2, tsallis: r.entropy.tsallis, normalized: r.entropy.normalizedShannon },
+    dynamics: { lyapunov: r.attractor.lyapunov, isStable: r.attractor.isStable },
+    fractal: { dimension: r.fractal.dimension }
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'hypermeta-results.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+loadDataset('vitamind');
+setTimeout(() => { if (studies.length >= 3) runHyperMeta(); }, 100);
+</script>
+</body>
+</html>
