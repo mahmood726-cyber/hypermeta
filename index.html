@@ -97,7 +97,7 @@ button.primary:hover{background:#6d28d9}
     <div class="sub">Evidence Geometry Engine</div>
   </div>
   <div class="header-controls">
-    <select id="datasetSelect" onchange="loadDataset(this.value)" style="background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;font-family:var(--font)">
+    <select id="datasetSelect" aria-label="Load example dataset" onchange="loadDataset(this.value)" style="background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;font-family:var(--font)">
       <option value="">-- Load Example --</option>
       <option value="vitamind">Vitamin D & Mortality Paradox (16 studies)</option>
       <option value="hrt">HRT & Breast Cancer Reversal (12 studies)</option>
@@ -349,12 +349,12 @@ function addRow(d) {
   const data = d || { study: '', design: 'RCT', yi: '', se: '', year: '', n: '' };
   tr.innerHTML = `
     <td style="text-align:center;color:var(--text2)">${rowNum}</td>
-    <td><input type="text" value="${escapeHtml(String(data.study))}" data-f="study"></td>
-    <td><input type="text" value="${escapeHtml(String(data.design))}" data-f="design"></td>
-    <td><input type="text" value="${data.yi}" data-f="yi"></td>
-    <td><input type="text" value="${data.se}" data-f="se"></td>
-    <td><input type="text" value="${data.year}" data-f="year"></td>
-    <td><input type="text" value="${data.n}" data-f="n"></td>
+    <td><input type="text" aria-label="Study name" value="${escapeHtml(String(data.study))}" data-f="study"></td>
+    <td><input type="text" aria-label="Study design" value="${escapeHtml(String(data.design))}" data-f="design"></td>
+    <td><input type="text" aria-label="Effect size (yi)" value="${data.yi}" data-f="yi"></td>
+    <td><input type="text" aria-label="Standard error (SE)" value="${data.se}" data-f="se"></td>
+    <td><input type="text" aria-label="Publication year" value="${data.year}" data-f="year"></td>
+    <td><input type="text" aria-label="Sample size (n)" value="${data.n}" data-f="n"></td>
     <td><button onclick="this.closest('tr').remove();sync()" style="padding:2px 6px;color:var(--red);border:none;background:none;cursor:pointer">&times;</button></td>
   `;
   tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', sync));
