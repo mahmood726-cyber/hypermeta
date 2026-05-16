@@ -25,6 +25,10 @@ def driver():
     d.quit()
 
 def js(d, script):
+    if "results" in script and "typeof results" not in script:
+        has_results = d.execute_script("return typeof results !== 'undefined' && results !== null")
+        if not has_results:
+            load_and_run(d)
     return d.execute_script(script)
 
 def load_page(d):
